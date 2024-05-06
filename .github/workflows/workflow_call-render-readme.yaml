@@ -4,10 +4,10 @@ name: "Workflow call: Render Readme"
 on:
   workflow_call:
     secrets:
-      BJWS_APP_ID:
+      MGLANTS_APP_ID:
         description: "The App ID of the GitHub App"
         required: true
-      BJWS_APP_PRIVATE_KEY:
+      MGLANTS_APP_PRIVATE_KEY:
         description: "The private key of the GitHub App"
         required: true
 
@@ -22,8 +22,8 @@ jobs:
         uses: actions/create-github-app-token@v1.10.0
         id: app-token
         with:
-          app-id: "${{ secrets.BJWS_APP_ID }}"
-          private-key: "${{ secrets.BJWS_APP_PRIVATE_KEY }}"
+          app-id: "${{ secrets.MGLANTS_APP_ID }}"
+          private-key: "${{ secrets.MGLANTS_APP_PRIVATE_KEY }}"
 
       - name: Checkout
         uses: actions/checkout@v4

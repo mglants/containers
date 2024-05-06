@@ -300,7 +300,7 @@ jobs:
         uses: sarisia/actions-status-discord@v1
         if: ${{ always() && inputs.sendNotification == 'true' }}
         with:
-          webhook: ${{ secrets.BJWS_DISCORD_WEBHOOK }}
+          webhook: ${{ secrets.MGLANTS_DISCORD_WEBHOOK }}
           title: ${{ steps.build-failed.outputs.message || steps.build-success.outputs.message }}
           color: ${{ steps.build-failed.outputs.color || steps.build-success.outputs.color }}
           username: GitHub Actions
