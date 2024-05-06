@@ -1,0 +1,36 @@
+---
+name: "Pull Request: Validate"
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+jobs:
+  # Pin to main to prevent accidental injection of malicious code
+  lint:
+    name: Lint
+    uses: mglants/containers/.github/workflows/workflow_call-lint.yaml@main
+
+  get-changed-images:
+    name: Get changed images
+    uses: mglants/containers/.github/workflows/workflow_call-get_changed_images.yaml@main
+
+  build-images:
+    name: Build images
+    needs:
+      - lint
+      - get-changed-images
+    if: ${{ needs.get-changed-images.outputs.addedOrModified == 'true' }}
+    uses: mglants/containers/.github/workflows/workflow_call-build_images.yaml@main
+    permissions:
+      contents: read
+      packages: read
+    with:
+      appsToBuild: "${{ needs.get-changed-images.outputs.addedOrModifiedImages }}"
+      pushImages: false
+      sendNotifications: false
