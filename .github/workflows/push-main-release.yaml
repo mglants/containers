@@ -41,6 +41,8 @@ jobs:
 
   render-readme:
     name: Render Readme
+    permissions:
+      contents: write
     needs:
       - build-images
     if: ${{ always() && needs.build-images.result != 'failure' }}}
