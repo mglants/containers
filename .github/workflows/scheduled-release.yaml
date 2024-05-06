@@ -36,6 +36,8 @@ jobs:
 
   render-readme:
     name: Render Readme
+    permissions:
+      contents: write
     needs:
       - build-images
     uses: ./.github/workflows/workflow_call-render-readme.yaml
