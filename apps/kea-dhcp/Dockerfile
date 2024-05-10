@@ -16,74 +16,16 @@ ENV CC="clang" \
 # make base image
 RUN apk add --no-cache --update ${BUILD_PKGS}
 
-
-## log4cplus
-FROM base-image AS log4cplus
-
-# Environment
-# renovate: datasource=github-releases depName=log4cplus packageName=log4cplus/log4cplus
-ENV LOG4CPLUS="2.1.1"
-ENV LOG4CPLUS_SOURCE="https://sourceforge.net/projects/log4cplus/files/log4cplus-stable/${LOG4CPLUS}/log4cplus-${LOG4CPLUS}.tar.bz2"
-
-# build library
-RUN apk add --update --no-cache ${BUILD_PKGS}
-RUN mkdir -p /usr/local/src \
-    && curl -fSsL ${LOG4CPLUS_SOURCE} -o log4cplus.tar.bz2 \
-    && tar xf log4cplus.tar.bz2 --strip-components=1 -C /usr/local/src \
-    && rm log4cplus.tar.bz2
-RUN cd /usr/local/src \
-    && ./configure \
-        CFLAGS="${CFLAGS}" CXXFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" \
-    && make -j$(nproc) \
-    && make install-strip DESTDIR=/tmp/root
-RUN ldconfig /
-
-
-## botan
-FROM base-image AS botan
-
-# Environment
-# renovate: datasource=github-tags depName=botan packageName=randombit/botan
-ENV BOTAN="3.4.0"
-ARG BUILD_PKGS="boost-dev bzip2-dev openssl-dev zlib-dev sqlite-dev python3"
-ARG CFLAGS="-O2 -pthread -pipe -fomit-frame-pointer "
-ARG CXXFLAGS="${CFLAGS} "
-ARG CPPFLAGS="${CFLAGS} "
-
-# build library
-RUN apk add --update --no-cache ${BUILD_PKGS}
-RUN mkdir -p /usr/local/src \
-    && curl -fsSL "https://github.com/randombit/botan/archive/${BOTAN}.tar.gz" -o botan.tar.gz \
-    && tar xf botan.tar.gz --strip-components=1 -C /usr/local/src \
-    && rm botan.tar.gz
-RUN cd /usr/local/src \
-    && ./configure.py \
-        --cc=clang \
-        --with-boost \
-        --with-bzip2 \
-        --with-sqlite3 \
-        --with-zlib \
-        --disable-static-library \
-        --optimize-for-size \
-        --minimized-build \
-        --without-documentation
-RUN cd /usr/local/src \
-    && make -j"$(nproc)" install DESTDIR=/tmp/root \
-    && rm -f /tmp/root/usr/local/bin/botan
-RUN ldconfig /
-
-
 # build binary
 FROM base-image AS build
 ARG VERSION
 # Environment
-ARG BUILD_PKGS="boost-dev postgresql-dev mariadb-dev bison flex perl curl openssl-dev cassandra-cpp-driver-dev"
+ARG BUILD_PKGS="boost-dev postgresql-dev log4cplus-dev botan-dev mariadb-dev bison flex perl curl openssl-dev cassandra-cpp-driver-dev"
 ARG CFLAGS="-O2 -pthread -pipe -fPIC -fPIE -fomit-frame-pointer "
 ARG CXXFLAGS="${CFLAGS} "
 
 # dev package install
 COPY --from=log4cplus /tmp/root /
-COPY --from=botan /tmp/root /
 RUN apk add --no-cache --update ${BUILD_PKGS}
 ## build
 RUN mkdir -p /tmp/build \
