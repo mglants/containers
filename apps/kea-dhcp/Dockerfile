@@ -25,7 +25,6 @@ ARG CFLAGS="-O2 -pthread -pipe -fPIC -fPIE -fomit-frame-pointer "
 ARG CXXFLAGS="${CFLAGS} "
 
 # dev package install
-COPY --from=log4cplus /tmp/root /
 RUN apk add --no-cache --update ${BUILD_PKGS}
 ## build
 RUN mkdir -p /tmp/build \
@@ -70,7 +69,6 @@ FROM docker.io/alpine:3.19.1 AS runtime
 # Install runtime dependencies
 ARG RUN_PKGS="libgcc libstdc++ boost-system mariadb-connector-c libpq tzdata procps libatomic tini sqlite-libs \
               libbz2 cassandra-cpp-driver python3 "
-COPY --from=log4cplus /tmp/root /
 COPY --from=botan /tmp/root /
 RUN apk add --update --no-cache ${RUN_PKGS} \
     && rm -rf /var/cache/apk/* /usr/local/share/man/* \
