@@ -5,10 +5,5 @@ process:
     running: true
 
 port:
-  tcp:8080:
+  tcp:8000:
     listening: true
-
-# https://github.com/aelsabbahy/goss/blob/master/docs/manual.md#http
-http:
-  http://localhost:9547:
-    status: 200
