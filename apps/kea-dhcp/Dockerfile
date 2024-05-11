@@ -1,26 +1,8 @@
-## base image
-FROM docker.io/alpine:3.19.1 AS base-image
-ARG BUILD_BASE="alpine-sdk clang llvm lld gawk autoconf automake clang-dev libtool"
-ARG BUILD_PKGS="${BUILD_BASE}"
-ARG CFLAGS="-O2 -pthread -pipe -fPIC -fPIE -fomit-frame-pointer "
-ARG CXXFLAGS="${CFLAGS} "
-ARG LDFLAGS="-Wl,-O2 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now "
-ENV CC="clang" \
-    CXX="clang++" \
-    AR="llvm-ar" \
-    NM="llvm-nm" \
-    RANLIB="llvm-ranlib" \
-    LD="ld.lld" \
-    STRIP="llvm-strip"
-
-# make base image
-RUN apk add --no-cache --update ${BUILD_PKGS}
-
 # build binary
-FROM base-image AS build
+FROM docker.io/alpine:3.19.1 AS build
 ARG VERSION
 # Environment
-ARG BUILD_PKGS="boost-dev postgresql-dev log4cplus-dev botan-dev mariadb-dev bison flex perl curl openssl-dev cassandra-cpp-driver-dev"
+ARG BUILD_PKGS="build-base boost-dev log4cplus-dev autoconf automake bison botan-dev flex libcap-utils libtool mariadb-dev postgresql-dev python3-dev procps curl"
 ARG CFLAGS="-O2 -pthread -pipe -fPIC -fPIE -fomit-frame-pointer "
 ARG CXXFLAGS="${CFLAGS} "
 
@@ -67,9 +49,8 @@ RUN pip3 install --target="/install" kea-exporter
 FROM docker.io/alpine:3.19.1 AS runtime
 
 # Install runtime dependencies
-ARG RUN_PKGS="libgcc libstdc++ boost-system mariadb-connector-c libpq tzdata procps libatomic tini sqlite-libs \
-              libbz2 cassandra-cpp-driver python3 "
-COPY --from=botan /tmp/root /
+ARG RUN_PKGS="libgcc libstdc++ musl botan-libs mariadb-connector-c socat libpq tini \
+         python3 log4cplus"
 RUN apk add --update --no-cache ${RUN_PKGS} \
     && rm -rf /var/cache/apk/* /usr/local/share/man/* \
     && mkdir -p /var/lib/kea
@@ -103,5 +84,4 @@ CMD ["/usr/local/bin/entrypoint.sh"]
 # Fetch isc Kea libraries from build image
 COPY --from=build /tmp/root/ /
 COPY --from=exporter /install /usr/local
-USER nobody
 RUN ldconfig /
