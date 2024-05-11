@@ -1,5 +1,5 @@
 ARG VERSION
-FROM docker.io/golang:1.22.2 AS build
+FROM docker.io/golang:1.22.3 AS build
 ARG VERSION
 
 RUN \
