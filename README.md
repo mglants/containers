@@ -48,4 +48,5 @@ Each Image will be built with a `rolling` tag, along with tags specific to it's 
 Container | Channel | Image
 --- | --- | ---
 [kea-dhcp](https://github.com/MGlants/containers/pkgs/container/kea-dhcp) | stable | ghcr.io/MGlants/kea-dhcp
+[kea-dhcp-sidecar](https://github.com/MGlants/containers/pkgs/container/kea-dhcp-sidecar) | stable | ghcr.io/MGlants/kea-dhcp-sidecar
 [matchbox](https://github.com/MGlants/containers/pkgs/container/matchbox) | stable | ghcr.io/MGlants/matchbox
