@@ -1,6 +1,6 @@
 ---
 app: "kea-dhcp-sidecar"
-base: true
+base: false
 semantic_versioning: true
 channels:
   - name: "stable"
