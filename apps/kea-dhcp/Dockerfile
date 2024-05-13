@@ -55,7 +55,7 @@ RUN pip3 install --target="/install" kea-exporter
 FROM docker.io/alpine:3.19.1 AS runtime
 
 # Install runtime dependencies
-ARG RUN_PKGS="libgcc libstdc++ musl botan-libs mariadb-connector-c socat libpq tini \
+ARG RUN_PKGS="libgcc libstdc++ musl botan-libs mariadb-connector-c socat libpq \
          python3 log4cplus"
 RUN apk add --update --no-cache ${RUN_PKGS} \
     && rm -rf /var/cache/apk/* /usr/local/share/man/* \
@@ -87,8 +87,7 @@ STOPSIGNAL SIGTERM
 
 # select entrypoint
 COPY ./entrypoint.sh /usr/local/bin/
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Fetch isc Kea libraries from build image
 COPY --from=build /tmp/root/ /
