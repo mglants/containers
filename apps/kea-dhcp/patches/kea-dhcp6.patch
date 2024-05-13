@@ -1,0 +1,20 @@
+--- kea-dhcp6.conf	2024-05-13 04:16:09
++++ kea-dhcp6-new.conf	2024-05-13 04:16:10
+@@ -43,7 +43,7 @@
+     // description, see Sections 9.12, 16 and 15.
+     "control-socket": {
+         "socket-type": "unix",
+-        "socket-name": "/tmp/kea6-ctrl-socket"
++        "socket-name": "/run/kea/kea-dhcp6-ctrl.sock"
+     },
+ 
+     // Use Memfile lease database backend to store leases in a CSV file.
+@@ -395,7 +395,7 @@
+                 // - syslog (logs to syslog)
+                 // - syslog:name (logs to syslog using specified name)
+                 // Any other value is considered a name of the file
+-                "output": "/data/log/kea-dhcp6.log"
++                "output": "stdout"
+ 
+                 // Shorter log pattern suitable for use with systemd,
+                 // avoids redundant information

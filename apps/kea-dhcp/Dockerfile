@@ -18,7 +18,9 @@ RUN cd /tmp/build \
   && autoreconf -if \
   && ./configure \
         --prefix=/usr/local \
-        --sysconfdir=/etc \
+        --sysconfdir=/config \
+        --localstatedir=/data \
+        --runstatedir=/run \
         --disable-rpath \
         --disable-static \
         --with-boost-include \
@@ -35,10 +37,14 @@ RUN ldconfig /
 # Delete unnecessary directory
 RUN rm -rf /tmp/root/var/run /tmp/root/usr/local/share/man/* /tmp/root/usr/local/include /tmp/root/usr/include \
            /tmp/root/usr/share/kea /tmp/root/usr/share/doc/kea /tmp/root/usr/local/lib/kea/hooks/*.la \
-           /tmp/root/usr/local/lib/*.la /tmp/root/usr/local/include/*
-
-
-
+           /tmp/root/usr/local/lib/*.la /tmp/root/usr/local/include/* /tmp/root/data/log/
+# Patch config files for patching sockets and logs
+COPY ./patches /patches
+RUN cd  /tmp/root/config/kea && \
+    patch < /patches/kea-ctrl-agent.patch && \
+    patch < /patches/kea-dhcp-ddns.patch && \
+    patch < /patches/kea-dhcp4.patch && \
+    patch < /patches/kea-dhcp6.patch
 # Intermediate container with runtime dependencies
 FROM docker.io/python:alpine3.19 as exporter
 RUN mkdir /install
@@ -69,6 +75,10 @@ LABEL org.opencontainers.image.source="https://github.com/isc-projects/kea"
 LABEL org.opencontainers.image.documentation="https://kea.readthedocs.io/"
 LABEL org.opencontainers.image.vendor="isc-projects"
 
+#Logging
+RUN mkdir /var/log/kea
+ENV KEA_LOGGER_DESTINATION stdout
+ENV KEA_LOCKFILE_DIR /run/kea
 # publish port TCP and UDP
 EXPOSE 67/UDP 547/TCP 547/UDP 8080 9547
 
@@ -76,7 +86,6 @@ EXPOSE 67/UDP 547/TCP 547/UDP 8080 9547
 STOPSIGNAL SIGTERM
 
 # select entrypoint
-WORKDIR /etc/kea
 COPY ./entrypoint.sh /usr/local/bin/
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/usr/local/bin/entrypoint.sh"]

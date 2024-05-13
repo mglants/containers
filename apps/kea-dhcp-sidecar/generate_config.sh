@@ -19,12 +19,12 @@ generate_config() {
   PEER_ENTRIES="${PEER_ENTRIES%,}"
 
   # Generate the JSON object with the list of peers
-  echo "\"peers\": [$PEER_ENTRIES]" > /etc/kea/peers.json
+  echo "\"peers\": [$PEER_ENTRIES]" > /config/kea/peers.json
   # Reload kea-configuration
   curl -X POST -H "Content-Type: application/json" -d '{ "command": "config-reload", "service": [ "dhcp4","dhcp6" ] }' http://127.0.0.1:8000/
 }
 echo "First initialization"
-cp /etc/kea/ha-init.json /etc/kea/ha.json
+cp /config/kea/ha-init.json /config/kea/ha.json
 generate_config
 curl -X POST -H "Content-Type: application/json" -d '{ "command": "libreload", "service": [ "dhcp4","dhcp6" ] }' http://127.0.0.1:8000/
 curl -X POST -H "Content-Type: application/json" -d '{ "command": "config-reload", "service": [ "dhcp4","dhcp6" ] }' http://127.0.0.1:8000/

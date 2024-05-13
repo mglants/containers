@@ -1,0 +1,30 @@
+--- kea-ctrl-agent.conf	2024-05-13 04:17:12
++++ kea-ctrl-agent-new.conf	2024-05-13 04:15:11
+@@ -32,15 +32,15 @@
+     "control-sockets": {
+         "dhcp4": {
+             "socket-type": "unix",
+-            "socket-name": "/tmp/kea4-ctrl-socket"
++            "socket-name": "/run/kea/kea-dhcp4-ctrl.sock"
+         },
+         "dhcp6": {
+             "socket-type": "unix",
+-            "socket-name": "/tmp/kea6-ctrl-socket"
++            "socket-name": "/run/kea/kea-dhcp6-ctrl.sock"
+         },
+         "d2": {
+             "socket-type": "unix",
+-            "socket-name": "/tmp/kea-ddns-ctrl-socket"
++            "socket-name": "/run/kea/kea-dhcp-ddns-ctrl.sock"
+         }
+     },
+ 
+@@ -73,7 +73,7 @@
+                 // - syslog (logs to syslog)
+                 // - syslog:name (logs to syslog using specified name)
+                 // Any other value is considered a name of the file
+-                "output": "/data/log/kea-ctrl-agent.log"
++                "output": "stdout"
+ 
+                 // Shorter log pattern suitable for use with systemd,
+                 // avoids redundant information

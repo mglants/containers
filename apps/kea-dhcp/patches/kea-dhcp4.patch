@@ -1,0 +1,20 @@
+--- kea-dhcp4.conf	2024-05-13 04:15:59
++++ kea-dhcp4-new.conf	2024-05-13 04:15:50
+@@ -49,7 +49,7 @@
+     // more. For detailed description, see Sections 8.8, 16 and 15.
+     "control-socket": {
+         "socket-type": "unix",
+-        "socket-name": "/tmp/kea4-ctrl-socket"
++        "socket-name": "/run/kea/kea-dhcp4-ctrl.sock"
+     },
+ 
+     // Use Memfile lease database backend to store leases in a CSV file.
+@@ -436,7 +436,7 @@
+                 // - syslog (logs to syslog)
+                 // - syslog:name (logs to syslog using specified name)
+                 // Any other value is considered a name of the file
+-                "output": "/data/log/kea-dhcp4.log"
++                "output": "stdout"
+ 
+                 // Shorter log pattern suitable for use with systemd,
+                 // avoids redundant information
