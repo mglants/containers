@@ -55,7 +55,7 @@ RUN pip3 install --target="/install" kea-exporter
 FROM docker.io/alpine:3.19.1 AS runtime
 
 # Install runtime dependencies
-ARG RUN_PKGS="libgcc libstdc++ musl botan-libs mariadb-connector-c socat libpq \
+ARG RUN_PKGS="libgcc libstdc++ musl botan-libs mariadb-connector-c socat libpq procps \
          python3 log4cplus"
 RUN apk add --update --no-cache ${RUN_PKGS} \
     && rm -rf /var/cache/apk/* /usr/local/share/man/* \
