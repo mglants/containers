@@ -13,9 +13,9 @@ _A Collection of Container Images Optimized for Kubernetes_
 
 <div align="center">
 
-![GitHub Repo stars](https://img.shields.io/github/stars/MGlants/containers?style=for-the-badge)
-![GitHub forks](https://img.shields.io/github/forks/MGlants/containers?style=for-the-badge)
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/MGlants/containers/scheduled-release.yaml?style=for-the-badge&label=Scheduled%20Release)
+![GitHub Repo stars](https://img.shields.io/github/stars/mglants/containers?style=for-the-badge)
+![GitHub forks](https://img.shields.io/github/forks/mglants/containers?style=for-the-badge)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/mglants/containers/scheduled-release.yaml?style=for-the-badge&label=Scheduled%20Release)
 
 </div>
 
@@ -47,7 +47,7 @@ Each Image will be built with a `rolling` tag, along with tags specific to it's 
 
 Container | Channel | Image
 --- | --- | ---
-[cni-plugins](https://github.com/MGlants/containers/pkgs/container/cni-plugins) | stable | ghcr.io/MGlants/cni-plugins
-[kea-dhcp](https://github.com/MGlants/containers/pkgs/container/kea-dhcp) | stable | ghcr.io/MGlants/kea-dhcp
-[kea-dhcp-sidecar](https://github.com/MGlants/containers/pkgs/container/kea-dhcp-sidecar) | stable | ghcr.io/MGlants/kea-dhcp-sidecar
-[matchbox](https://github.com/MGlants/containers/pkgs/container/matchbox) | stable | ghcr.io/MGlants/matchbox
+[cni-plugins](https://github.com/mglants/containers/pkgs/container/cni-plugins) | stable | ghcr.io/mglants/cni-plugins
+[kea-dhcp](https://github.com/mglants/containers/pkgs/container/kea-dhcp) | stable | ghcr.io/mglants/kea-dhcp
+[kea-dhcp-sidecar](https://github.com/mglants/containers/pkgs/container/kea-dhcp-sidecar) | stable | ghcr.io/mglants/kea-dhcp-sidecar
+[matchbox](https://github.com/mglants/containers/pkgs/container/matchbox) | stable | ghcr.io/mglants/matchbox
