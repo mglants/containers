@@ -50,5 +50,5 @@ Container | Channel | Image
 [cni-plugins](https://github.com/mglants/containers/pkgs/container/cni-plugins) | stable | ghcr.io/mglants/cni-plugins
 [kea-dhcp](https://github.com/mglants/containers/pkgs/container/kea-dhcp) | stable | ghcr.io/mglants/kea-dhcp
 [kea-dhcp-sidecar](https://github.com/mglants/containers/pkgs/container/kea-dhcp-sidecar) | stable | ghcr.io/mglants/kea-dhcp-sidecar
-[kea-dhcp-sidecar](https://github.com/mglants/containers/pkgs/container/kea-dhcp-sidecar) | stable | ghcr.io/mglants/kea-dhcp-sidecar
 [matchbox](https://github.com/mglants/containers/pkgs/container/matchbox) | stable | ghcr.io/mglants/matchbox
+[mktxp](https://github.com/mglants/containers/pkgs/container/mktxp) | stable | ghcr.io/mglants/mktxp
