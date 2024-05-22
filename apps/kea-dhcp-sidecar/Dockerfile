@@ -1,5 +1,5 @@
 FROM bitnami/kubectl:1.30.1 as kubectl
-FROM docker.io/alpine:3.19.1
+FROM docker.io/alpine:3.20.0
 
 COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/
 
