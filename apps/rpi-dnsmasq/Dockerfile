@@ -1,4 +1,4 @@
-FROM docker.io/library/alpine:3.19 as rpi
+FROM docker.io/library/alpine:3.20 as rpi
 
 COPY ./serials /serials
 
