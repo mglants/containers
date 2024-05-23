@@ -52,4 +52,4 @@ Container | Channel | Image
 [kea-dhcp-sidecar](https://github.com/mglants/containers/pkgs/container/kea-dhcp-sidecar) | stable | ghcr.io/mglants/kea-dhcp-sidecar
 [matchbox](https://github.com/mglants/containers/pkgs/container/matchbox) | stable | ghcr.io/mglants/matchbox
 [mktxp](https://github.com/mglants/containers/pkgs/container/mktxp) | stable | ghcr.io/mglants/mktxp
-[raspberrypi4-uefi](https://github.com/mglants/containers/pkgs/container/raspberrypi4-uefi) | stable | ghcr.io/mglants/raspberrypi4-uefi
+[rpi-dnsmasq](https://github.com/mglants/containers/pkgs/container/rpi-dnsmasq) | stable | ghcr.io/mglants/rpi-dnsmasq
