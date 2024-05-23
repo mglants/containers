@@ -21,4 +21,4 @@ LABEL xyz.glants.image.target_os=$TARGETOS
 LABEL org.opencontainers.image.title="rpi-dnsmasq"
 LABEL org.opencontainers.image.source="github.com/poseidon/dnsmasq"
 COPY --from=rpi /tftp /var/lib/tftpboot
-RUN curl -s -o var/lib/tftpboot/ipxe-arm64.efi http://boot.ipxe.org/ipxe.efi
+RUN curl -s -o var/lib/tftpboot/ipxe-arm64.efi https://boot.ipxe.org/arm64-efi/ipxe.efi
