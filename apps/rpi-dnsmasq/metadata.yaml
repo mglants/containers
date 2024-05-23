@@ -1,5 +1,5 @@
 ---
-app: "raspberrypi4-uefi"
+app: "rpi-dnsmasq"
 base: false
 semantic_versioning: true
 channels:
