@@ -48,6 +48,7 @@ Each Image will be built with a `rolling` tag, along with tags specific to it's 
 Container | Channel | Image
 --- | --- | ---
 [cni-plugins](https://github.com/mglants/containers/pkgs/container/cni-plugins) | stable | ghcr.io/mglants/cni-plugins
+[emonoda](https://github.com/mglants/containers/pkgs/container/emonoda) | stable | ghcr.io/mglants/emonoda
 [kea-dhcp](https://github.com/mglants/containers/pkgs/container/kea-dhcp) | stable | ghcr.io/mglants/kea-dhcp
 [kea-dhcp-sidecar](https://github.com/mglants/containers/pkgs/container/kea-dhcp-sidecar) | stable | ghcr.io/mglants/kea-dhcp-sidecar
 [matchbox](https://github.com/mglants/containers/pkgs/container/matchbox) | stable | ghcr.io/mglants/matchbox
