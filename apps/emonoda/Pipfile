@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+Cython = "*"
+chardet = "*"
+pyyaml = "*"
+colorama = "*"
+pygments = "*"
+pytz = "*"
+python-dateutil = "*"
+Mako = "*"
+emonoda = {editable = true, ref = "v${VERSION}", git = "git+https://github.com/mdevaev/emonoda.git"}
+
+[dev-packages]
+
+[requires]
+python_version = "3"
