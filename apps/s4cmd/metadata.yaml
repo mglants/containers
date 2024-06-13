@@ -1,0 +1,12 @@
+---
+app: "s4cmd"
+base: false
+semantic_versioning: true
+channels:
+  - name: "stable"
+    platforms:
+      - linux/arm64
+      - linux/amd64
+    stable: true
+    tests:
+      enabled: false
