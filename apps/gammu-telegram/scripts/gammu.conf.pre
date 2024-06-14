@@ -1,0 +1,21 @@
+[gammu]
+device = ${GAMMU_DEVICE}
+connection = ${GAMMU_CONNECTION}
+
+[smsd]
+Service = files
+PIN = XXXX
+LogFile = /dev/stdout
+HangupCalls = 1
+RunOnReceive = /usr/bin/python3 /scripts/sms_received.py
+InboxPath = /data/inbox/
+OutboxPath = /data/outbox/
+SentSMSPath = /data/sent/
+ErrorSMSPath = /data/error/
+debuglevel = 1
+InboxFormat = unicode
+OutboxFormat = unicode
+TransmitFormat = auto
+DeliveryReport = sms
+DeliveryReportDelay = 7200
+CheckSecurity = 0
