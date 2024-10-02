@@ -12,7 +12,7 @@ ARG VERSION
 # Install pipenv and compilation dependencies
 RUN pip install pipenv
 RUN apt-get update && apt-get install -y --no-install-recommends gcc git g++
-RUN git clone --depth 1 --branch ${VERSION} https://github.com/BBQigniter/kube-vip-watcher.git /src
+RUN git clone --depth 1 --branch v${VERSION} https://github.com/BBQigniter/kube-vip-watcher.git /src
 RUN chmod +x /src/*.py
 RUN chmod +x /src/healthchecks/*.py
 # Install python dependencies in /.venv
