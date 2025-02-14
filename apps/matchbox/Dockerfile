@@ -8,7 +8,7 @@ RUN \
     && apt-get clean
 RUN cd src && make build
 
-FROM docker.io/alpine:3.20.0
+FROM docker.io/alpine:3.20.6
 RUN mkdir /var/lib/matchbox && mkdir /var/lib/matchbox/assets
 ARG TARGETPLATFORM
 ARG TARGETARCH
