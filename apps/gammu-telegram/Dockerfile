@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:experimental
 
 # Use the Alpine Linux 3 base image
-FROM docker.io/alpine:3.20.0
+FROM docker.io/alpine:3.20.6
 
 # Define build arguments
 ARG TARGETPLATFORM
