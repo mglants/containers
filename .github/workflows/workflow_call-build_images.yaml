@@ -39,10 +39,10 @@ jobs:
           echo "LOWERCASE_REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "${GITHUB_ENV}"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5
         with:
           python-version: "3.11"
           cache: "pip" # caching pip dependencies
@@ -119,15 +119,15 @@ jobs:
           echo "${{ matrix.image.version }}" | grep -E "[a-zA-Z0-9_\.\-]+" || "Image Version is invalid"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           fetch-depth: 1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3
 
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -135,7 +135,7 @@ jobs:
 
       - name: Setup Goss
         if: ${{ matrix.image.tests_enabled }}
-        uses: e1himself/goss-installation-action@v1.2.1
+        uses: e1himself/goss-installation-action@fbb6fb55d3e59c96045b2500eeb8ce0995d99ac1 # v1.2.1
         with:
           version: v0.4.2
 
@@ -153,7 +153,7 @@ jobs:
           echo "outputs=${outputs}" >> $GITHUB_OUTPUT
 
       - name: Build Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6
         id: build
         with:
           build-args: |-
@@ -203,7 +203,7 @@ jobs:
 
       - name: Upload Digest
         if: ${{ inputs.pushImages }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.image.name }}-${{ matrix.image.target_os }}-${{ matrix.image.target_arch }}
           path: /tmp/${{ matrix.image.name }}/*
@@ -230,7 +230,7 @@ jobs:
           echo "LOWERCASE_REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "${GITHUB_ENV}"
 
       - name: Download Digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           pattern: "${{ matrix.image.name }}-{linux,darwin}-{amd64,arm64,arm}"
           merge-multiple: true
@@ -252,10 +252,10 @@ jobs:
           fi
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3
 
       - name: Setup GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -297,7 +297,7 @@ jobs:
           echo "color=0xFF0000" >> $GITHUB_OUTPUT
 
       - name: Send Discord Webhook
-        uses: sarisia/actions-status-discord@v1
+        uses: sarisia/actions-status-discord@5ddd3b114a98457dd80a39b2f00b6a998cd69008 # v1
         if: ${{ always() && inputs.sendNotification == 'true' }}
         with:
           webhook: ${{ secrets.MGLANTS_DISCORD_WEBHOOK }}
