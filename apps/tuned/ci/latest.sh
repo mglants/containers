@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-version="$(curl -sX GET "https://api.github.com/repos/containernetworking/plugins/releases/latest" | jq --raw-output '.tag_name')"
+version="$(curl -sX GET 'https://gitlab.alpinelinux.org/alpine/aports/-/raw/master/testing/tuned/APKBUILD' | grep 'pkgver=')"
 version="${version#*pkgver=}"
 printf "%s" "${version}"
