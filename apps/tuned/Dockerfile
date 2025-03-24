@@ -10,4 +10,5 @@ LABEL xyz.glants.image.target_architecture=$TARGETARCH
 LABEL xyz.glants.image.target_os=$TARGETOS
 USER root
 RUN apk add tuned --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/
-CMD tuned-adm
+COPY --chown=root:root ./tuned-main.conf /etc/tuned/tuned-main.conf
+CMD tuned
