@@ -1,4 +1,4 @@
-FROM docker.io/alpine:3.20 as rpi
+FROM docker.io/alpine:3.21 as rpi
 ARG VERSION
 COPY ./serials /serials
 
