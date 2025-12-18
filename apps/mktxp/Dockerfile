@@ -6,7 +6,7 @@ RUN mkdir /mktxp && \
       rm /*.tar.gz
 RUN pip3 install --target="/install" /mktxp/mktxp-${VERSION}
 
-FROM docker.io/alpine:3.20.0
+FROM docker.io/alpine:3.23.2
 
 # Install runtime dependencies
 ARG RUN_PKGS="python3"
