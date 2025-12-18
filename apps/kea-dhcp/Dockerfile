@@ -1,5 +1,5 @@
 # build binary
-FROM docker.io/alpine:3.20.0 AS build
+FROM docker.io/alpine:3.23.2 AS build
 ARG VERSION
 # Environment
 ARG BUILD_PKGS="build-base boost-dev log4cplus-dev autoconf automake bison botan-dev flex libcap-utils libtool mariadb-dev postgresql-dev python3-dev procps curl"
@@ -52,7 +52,7 @@ WORKDIR /install
 RUN pip3 install --target="/install" kea-exporter
 
 # Intermediate container with runtime dependencies
-FROM docker.io/alpine:3.20.0 AS runtime
+FROM docker.io/alpine:3.23.2 AS runtime
 
 # Install runtime dependencies
 ARG RUN_PKGS="libgcc libstdc++ musl botan-libs mariadb-connector-c socat libpq procps \
