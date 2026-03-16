@@ -16,7 +16,7 @@ LABEL xyz.glants.image.target_os=$TARGETOS
 LABEL org.opencontainers.image.title="s4cmd"
 LABEL org.opencontainers.image.source="https://github.com/bloomreach/s4cmd"
 
-RUN apk --update --no-cache add git python3 py3-pip bash curl wget tar zip awk libarchive-tools && \
+RUN apk --update --no-cache add git python3 py3-pip bash curl wget tar zip libarchive-tools && \
     pip install --break-system-packages git+https://github.com/bloomreach/s4cmd.git@${VERSION} && \
     rm -rf /var/cache/apk/*
 
