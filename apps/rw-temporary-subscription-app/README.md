@@ -37,7 +37,7 @@ Variables:
 - `RW_SQUAD_UUID` - optional internal squad UUID; when set, each created user is added to this squad
 - `APP_AUTH_PASSWORD` - password-only protection for page/API access; if empty, auth is disabled
 - `APP_AUTH_COOKIE_SAME_SITE` - cookie SameSite policy for auth; use `None` behind cross-site proxies/iframes, which also enables `Secure`
-- `VITE_API_BASE_URL` - frontend target for the local backend
+- `VITE_API_BASE_URL` - optional frontend API base URL override; if empty in production, frontend uses same origin (`/api/...`)
 - `VITE_TELEGRAM_BOT_USERNAME` - Telegram bot username (without `@`) shown in the activation instructions
 
 ## Install dependencies
@@ -92,6 +92,8 @@ Build production image:
 npm run docker:build
 ```
 
+Note: `VITE_*` variables are injected at build time. Rebuild the image after changing them.
+
 Run container (uses values from `.env`):
 
 ```bash
@@ -103,6 +105,8 @@ Or use Compose:
 ```bash
 docker compose up --build
 ```
+
+Compose passes `VITE_API_BASE_URL` and `VITE_TELEGRAM_BOT_USERNAME` as Docker build args and uses `.env` as runtime env for backend variables.
 
 Then open:
 
