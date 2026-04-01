@@ -286,6 +286,18 @@ app.post('/auth/login', (req, res) => {
   return res.status(401).type('html').send(renderAuthPage('Invalid password.'));
 });
 
+app.get('/config.js', (_req, res) => {
+  const clientConfig = {
+    VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || '',
+    VITE_TELEGRAM_BOT_USERNAME: process.env.VITE_TELEGRAM_BOT_USERNAME || ''
+  };
+
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript').send(
+    `window.__RW_RUNTIME_CONFIG = ${JSON.stringify(clientConfig)};`
+  );
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });

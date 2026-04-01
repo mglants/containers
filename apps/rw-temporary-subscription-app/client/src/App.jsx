@@ -1,8 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
+function readRuntimeConfig(name) {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const runtimeConfig = window.__RW_RUNTIME_CONFIG;
+  const value = runtimeConfig && typeof runtimeConfig === 'object' ? runtimeConfig[name] : '';
+  return typeof value === 'string' ? value : '';
+}
+
+const API_BASE_URL =
+  readRuntimeConfig('VITE_API_BASE_URL') ||
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? 'http://localhost:3001' : '');
 const SUBSCRIPTION_STORAGE_KEY = 'rw-temp-subscription';
-const TELEGRAM_BOT_USERNAME_RAW = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '';
+const TELEGRAM_BOT_USERNAME_RAW =
+  readRuntimeConfig('VITE_TELEGRAM_BOT_USERNAME') ||
+  import.meta.env.VITE_TELEGRAM_BOT_USERNAME ||
+  '';
 const TELEGRAM_BOT_USERNAME = TELEGRAM_BOT_USERNAME_RAW.replace(/^@/, '');
 const TELEGRAM_BOT_URL = TELEGRAM_BOT_USERNAME ? `https://t.me/${TELEGRAM_BOT_USERNAME}` : null;
 
