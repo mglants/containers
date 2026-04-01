@@ -27,6 +27,57 @@ const __dirname = path.dirname(__filename);
 const CLIENT_DIST_PATH = path.resolve(__dirname, '../../client/dist');
 const CLIENT_INDEX_PATH = path.join(CLIENT_DIST_PATH, 'index.html');
 
+function log(level, message, meta = {}) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    ...meta
+  };
+  const line = JSON.stringify(entry);
+
+  if (level === 'error') {
+    console.error(line);
+    return;
+  }
+
+  if (level === 'warn') {
+    console.warn(line);
+    return;
+  }
+
+  console.log(line);
+}
+
+function buildErrorMeta(error) {
+  if (!(error instanceof Error)) {
+    return { error: String(error) };
+  }
+
+  return {
+    errorName: error.name,
+    errorMessage: error.message,
+    errorStack: error.stack
+  };
+}
+
+function stringifyForLog(value, maxLength = 1500) {
+  if (value == null) {
+    return null;
+  }
+
+  try {
+    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+    if (serialized.length <= maxLength) {
+      return serialized;
+    }
+
+    return `${serialized.slice(0, maxLength)}...<truncated>`;
+  } catch {
+    return String(value);
+  }
+}
+
 function timingSafeEqual(a, b) {
   const left = Buffer.from(a, 'utf8');
   const right = Buffer.from(b, 'utf8');
@@ -140,6 +191,33 @@ function requirePageAuth(req, res, next) {
   return res.redirect('/auth/login');
 }
 
+app.use((req, res, next) => {
+  const requestId = crypto.randomUUID();
+  const startedAt = Date.now();
+
+  req.requestId = requestId;
+  res.setHeader('X-Request-Id', requestId);
+
+  log('info', 'Request received', {
+    requestId,
+    method: req.method,
+    path: req.path,
+    ip: req.ip
+  });
+
+  res.on('finish', () => {
+    log('info', 'Request completed', {
+      requestId,
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      durationMs: Date.now() - startedAt
+    });
+  });
+
+  next();
+});
+
 app.use(
   cors({
     origin: true,
@@ -243,7 +321,15 @@ function buildRwPayload({ username }) {
 }
 
 app.post('/api/subscriptions/temporary', async (req, res) => {
+  const requestId = req.requestId;
+
   if (!RW_API_BASE_URL || !RW_API_TOKEN) {
+    log('error', 'Missing RW API configuration', {
+      requestId,
+      hasRwApiBaseUrl: Boolean(RW_API_BASE_URL),
+      hasRwApiToken: Boolean(RW_API_TOKEN)
+    });
+
     return res.status(500).json({
       error: 'Missing RW API configuration',
       details: 'Set RW_API_BASE_URL and RW_API_TOKEN in your environment.'
@@ -252,9 +338,19 @@ app.post('/api/subscriptions/temporary', async (req, res) => {
 
   const username = generateUsername();
   const payload = buildRwPayload({ username });
+  const rwUsersUrl = `${RW_API_BASE_URL.replace(/\/$/, '')}/api/users`;
+
+  log('info', 'Creating temporary subscription', {
+    requestId,
+    username,
+    rwUsersUrl,
+    expireAt: payload.expireAt,
+    trafficLimitBytes: payload.trafficLimitBytes,
+    hasSquad: Boolean(RW_SQUAD_UUID)
+  });
 
   try {
-    const response = await fetch(`${RW_API_BASE_URL.replace(/\/$/, '')}/api/users`, {
+    const response = await fetch(rwUsersUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -273,6 +369,13 @@ app.post('/api/subscriptions/temporary', async (req, res) => {
     }
 
     if (!response.ok) {
+      log('warn', 'RW API returned non-2xx response', {
+        requestId,
+        username,
+        rwStatus: response.status,
+        rwResponsePreview: stringifyForLog(responseBody)
+      });
+
       return res.status(response.status).json({
         error: 'RW API request failed',
         rwStatus: response.status,
@@ -285,6 +388,13 @@ app.post('/api/subscriptions/temporary', async (req, res) => {
       responseBody?.response?.subscriptionUrl ??
       responseBody?.subscriptionUrl ??
       null;
+
+    log('info', 'Temporary subscription created', {
+      requestId,
+      username,
+      rwStatus: response.status,
+      hasSubscriptionUrl: Boolean(subscriptionUrl)
+    });
 
     return res.status(201).json({
       message: 'Temporary subscription created',
@@ -299,6 +409,13 @@ app.post('/api/subscriptions/temporary', async (req, res) => {
       rwResponse: responseBody
     });
   } catch (error) {
+    log('error', 'RW API fetch failed', {
+      requestId,
+      username,
+      rwUsersUrl,
+      ...buildErrorMeta(error)
+    });
+
     return res.status(502).json({
       error: 'Failed to reach RW API',
       details: error instanceof Error ? error.message : 'Unknown error',
@@ -320,5 +437,12 @@ if (fs.existsSync(CLIENT_INDEX_PATH)) {
 }
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  log('info', 'Server started', {
+    port: PORT,
+    authEnabled: APP_AUTH_ENABLED,
+    rwApiBaseUrl: RW_API_BASE_URL || null,
+    hasRwApiToken: Boolean(RW_API_TOKEN),
+    hasSquad: Boolean(RW_SQUAD_UUID),
+    staticClientServed: fs.existsSync(CLIENT_INDEX_PATH)
+  });
 });
