@@ -1,0 +1,227 @@
+body {
+  margin: 0;
+  font-family: Inter, Arial, sans-serif;
+  background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  color: #e2e8f0;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 24px 72px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.page-shell {
+  display: grid;
+  gap: 24px;
+}
+
+.hero-card,
+.form-card {
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 45px rgba(2, 6, 23, 0.35);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #38bdf8;
+  font-size: 12px;
+}
+
+.hero-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.language-switch {
+  display: inline-flex;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.lang-button {
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lang-button.active {
+  background: #0ea5e9;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+h1,
+h3,
+h2,
+p {
+  margin-top: 0;
+}
+
+.hero-copy {
+  color: #cbd5e1;
+  max-width: 60ch;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.summary-item {
+  background: rgba(30, 41, 59, 0.8);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.summary-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.subscription-form {
+  display: grid;
+  gap: 18px;
+}
+
+.form-copy {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.single-subscription-note {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.subscription-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.subscription-form span {
+  font-weight: 600;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #e2e8f0;
+}
+
+input:focus,
+textarea:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+button {
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
+  color: white;
+  padding: 14px 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.result-panel {
+  margin-top: 24px;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.success-panel {
+  background: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.error-panel {
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.copy-button {
+  display: inline-block;
+  padding: 8px 12px;
+  margin-left: 6px;
+}
+
+.copy-feedback {
+  margin-top: 0;
+}
+
+.activation-guide {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.activation-guide h3 {
+  margin-bottom: 10px;
+}
+
+.activation-guide ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+.activation-guide a {
+  color: #7dd3fc;
+  word-break: break-all;
+}
+
+@media (max-width: 640px) {
+  main {
+    padding: 20px 16px 48px;
+  }
+
+  .hero-card,
+  .form-card {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .hero-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "rw-temporary-subscription-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server & npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "build": "npm run build --workspace client",
+    "start": "npm run start --workspace server",
+    "docker:build": "docker build -t rw-temporary-subscription-app .",
+    "docker:run": "docker run --rm -p 3001:3001 --env-file .env rw-temporary-subscription-app"
+  }
+}
