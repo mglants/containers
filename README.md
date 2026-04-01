@@ -56,6 +56,7 @@ Container | Channel | Image
 [matchbox](https://github.com/mglants/containers/pkgs/container/matchbox) | stable | ghcr.io/mglants/matchbox
 [mktxp](https://github.com/mglants/containers/pkgs/container/mktxp) | stable | ghcr.io/mglants/mktxp
 [rpi-dnsmasq](https://github.com/mglants/containers/pkgs/container/rpi-dnsmasq) | stable | ghcr.io/mglants/rpi-dnsmasq
+[rw-temporary-subscription-app](https://github.com/mglants/containers/pkgs/container/rw-temporary-subscription-app) | stable | ghcr.io/mglants/rw-temporary-subscription-app
 [s4cmd](https://github.com/mglants/containers/pkgs/container/s4cmd) | stable | ghcr.io/mglants/s4cmd
 [smartctl-exporter](https://github.com/mglants/containers/pkgs/container/smartctl-exporter) | stable | ghcr.io/mglants/smartctl-exporter
 [tuned](https://github.com/mglants/containers/pkgs/container/tuned) | stable | ghcr.io/mglants/tuned
