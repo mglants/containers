@@ -5,7 +5,15 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
         VITE_TELEGRAM_BOT_USERNAME: ${VITE_TELEGRAM_BOT_USERNAME:-}
+    init: true
     ports:
       - "3001:3001"
+    restart: unless-stopped
     env_file:
       - .env
+    volumes:
+      - temp-subscription-data:/app/server/data
+
+volumes:
+  temp-subscription-data:
+    name: rw-temp-subscription-data
