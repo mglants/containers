@@ -14,11 +14,11 @@ jobs:
   # Pin to main to prevent accidental injection of malicious code
   lint:
     name: Lint
-    uses: mglants/containers/.github/workflows/workflow_call-lint.yaml@main
+    uses: mglants/containers/.github/workflows/workflow_call-lint.yaml@2bcc5b0eed6dd9132070275c45d0b3e04fccc17b # main
 
   get-changed-images:
     name: Get changed images
-    uses: mglants/containers/.github/workflows/workflow_call-get_changed_images.yaml@main
+    uses: mglants/containers/.github/workflows/workflow_call-get_changed_images.yaml@2bcc5b0eed6dd9132070275c45d0b3e04fccc17b # main
 
   build-images:
     name: Build images
@@ -26,7 +26,7 @@ jobs:
       - lint
       - get-changed-images
     if: ${{ needs.get-changed-images.outputs.addedOrModified == 'true' }}
-    uses: mglants/containers/.github/workflows/workflow_call-build_images.yaml@main
+    uses: mglants/containers/.github/workflows/workflow_call-build_images.yaml@2bcc5b0eed6dd9132070275c45d0b3e04fccc17b # main
     permissions:
       contents: read
       packages: read

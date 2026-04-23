@@ -35,7 +35,7 @@ jobs:
 
       - name: "Yamllint"
         if: ${{ steps.filter.outputs.yaml == 'true' }}
-        uses: karancode/yamllint-github-action@master
+        uses: karancode/yamllint-github-action@4052d365f09b8d34eb552c363d1141fd60e2aeb2 # master
         with:
           yamllint_file_or_dir: "${{ steps.filter.outputs.yaml_files }}"
           yamllint_strict: false
