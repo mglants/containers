@@ -24,4 +24,4 @@ elif [[ -e /run/kea/kea-dhcp4-ctrl.sock ]];then
 elif [[ -e /run/kea/kea-dhcp6-ctrl.sock ]];then
   python3 /usr/local/bin/kea-exporter /run/kea/kea-dhcp6-ctrl.sock
 fi
-tail -f /dev/null
+exec tail -f /dev/null
