@@ -182,10 +182,12 @@ def desired(user, google_user, customer, identifier):
 
 
 def plan(google_users, users, customer, lookup, exclusions=frozenset(), create_disabled_users=False,
-         username_format="email"):
+         username_format="email", google_exclusions=frozenset(), username_collision_policy="error"):
     """Complete read-only planning, including deletion confirmations, before writes."""
     if username_format not in ("email", "local_part"):
         raise SyncError("USERNAME_FORMAT must be email or local_part")
+    if username_collision_policy not in ("error", "email"):
+        raise SyncError("USERNAME_COLLISION_POLICY must be error or email")
     actions, issues, skipped = [], [], []
     planned_usernames = set()
     by_id, by_email, by_name = defaultdict(list), defaultdict(list), defaultdict(list)
@@ -197,9 +199,23 @@ def plan(google_users, users, customer, lookup, exclusions=frozenset(), create_d
         by_name[user["username"].casefold()].append(user)
     gids = Counter(g["id"] for g in google_users)
     emails = Counter(g["primaryEmail"].casefold() for g in google_users)
+    # Count only eligible new identities, so all members of a collision receive
+    # email usernames regardless of API listing order. Existing names are fixed.
+    new_local_parts = Counter()
+    for g in google_users:
+        email = g["primaryEmail"].casefold()
+        local_part = email.split("@", 1)[0]
+        if (g["id"] not in google_exclusions and email not in google_exclusions
+                and email not in exclusions and local_part not in exclusions
+                and not by_id[g["id"]] and not by_email[email]
+                and (create_disabled_users or not (g["suspended"] or g.get("archived", False)))):
+            new_local_parts[local_part] += 1
     assigned = set()
     for g in google_users:
         gid, email = g["id"], g["primaryEmail"].casefold()
+        if gid in google_exclusions or email in google_exclusions:
+            skipped.append({"google_id": gid, "reason": "excluded_google_account"})
+            continue
         username = email.split("@", 1)[0] if username_format == "local_part" else email
         if gids[gid] != 1 or emails[email] != 1:
             issues.append({"google_id": gid, "reason": "duplicate_google_identity"})
@@ -227,9 +243,14 @@ def plan(google_users, users, customer, lookup, exclusions=frozenset(), create_d
                 issues.append({"google_id": gid, "reason": "identity_collision"})
                 continue
             assigned.add(user["pk"])
-        elif by_name[username] or username in planned_usernames or not username or len(username) > 150:
-            issues.append({"google_id": gid, "reason": "username_collision_or_length"})
-            continue
+        else:
+            if (username_format == "local_part" and username_collision_policy == "email"
+                    and (by_name[username] or new_local_parts[username] > 1)):
+                username = email
+            # A full-email collision remains an error: never merge identities.
+            if by_name[username] or username in planned_usernames or not username or len(username) > 150:
+                issues.append({"google_id": gid, "reason": "username_collision_or_length"})
+                continue
         body = desired(user, g, customer, gid)
         if not user:
             planned_usernames.add(username)
@@ -240,6 +261,11 @@ def plan(google_users, users, customer, lookup, exclusions=frozenset(), create_d
             actions.append(Action("update", gid, body, user))
     for gid, matches in by_id.items():
         if gid in gids:
+            continue
+        # For deleted Google users, the last synchronized primary email is all
+        # that remains. Immutable IDs are the reliable choice across renames.
+        if gid in google_exclusions or any(u.get("email", "").casefold() in google_exclusions for u in matches):
+            skipped.append({"google_id": gid, "reason": "excluded_google_account"})
             continue
         if len(matches) != 1:
             issues.append({"google_id": gid, "reason": "duplicate_stored_google_id"})
@@ -273,9 +299,10 @@ def execute(authentik, actions, exclusions):
 
 
 def run(google, authentik, customer, exclusions, apply=False, create_disabled_users=False,
-        username_format="email"):
+        username_format="email", google_exclusions=frozenset(), username_collision_policy="error"):
     actions, issues, skipped = plan(google.users(), authentik.users(), customer, google.get,
-                                    exclusions, create_disabled_users, username_format)
+                                    exclusions, create_disabled_users, username_format, google_exclusions,
+                                    username_collision_policy)
     for item in skipped:
         emit("excluded", **item)
     for item in issues:
@@ -314,6 +341,9 @@ def main():
         username_format = os.environ.get("USERNAME_FORMAT", "email").strip().lower()
         if username_format not in ("email", "local_part"):
             raise SyncError("USERNAME_FORMAT must be email or local_part")
+        username_collision_policy = os.environ.get("USERNAME_COLLISION_POLICY", "error").strip().lower()
+        if username_collision_policy not in ("error", "email"):
+            raise SyncError("USERNAME_COLLISION_POLICY must be error or email")
         customer = os.environ["GOOGLE_CUSTOMER_ID"]
         if not customer.startswith("C") or customer == "CHANGE_ME":
             raise SyncError("An explicit Google customer ID (C...) is required")
@@ -328,7 +358,9 @@ def main():
         session.headers["Authorization"] = "Bearer " + token
         authentik = Authentik(HTTP(session, "Authentik"), os.environ["AUTHENTIK_URL"])
         exclusions = frozenset(v.strip().casefold() for v in os.environ.get("EXCLUDED_USERS", "akadmin").split(",") if v.strip())
-        run(google, authentik, customer, exclusions, args.apply, create_disabled_users, username_format)
+        google_exclusions = frozenset(v.strip().casefold() for v in os.environ.get("EXCLUDED_GOOGLE_USERS", "").split(",") if v.strip())
+        run(google, authentik, customer, exclusions, args.apply, create_disabled_users,
+            username_format, google_exclusions, username_collision_policy)
         return 0
     except SyncError as exc:
         emit("failure", error=str(exc))

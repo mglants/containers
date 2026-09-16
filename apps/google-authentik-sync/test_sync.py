@@ -21,6 +21,79 @@ def user(managed=True, **kw):
 
 
 class PlannerTests(unittest.TestCase):
+    def test_email_fallback_is_order_independent(self):
+        gs = [google(), google("2", "user@other.example")]
+        for ordered in (gs, list(reversed(gs))):
+            actions, issues, _ = plan(ordered, [], "C123", Mock(),
+                                     username_format="local_part", username_collision_policy="email")
+            self.assertFalse(issues)
+            self.assertEqual({a.body["username"] for a in actions},
+                             {"user@example.com", "user@other.example"})
+
+    def test_email_fallback_against_existing_username(self):
+        actions, issues, _ = plan([google()], [user(False, username="user", email="other@example.com")],
+                                 "C123", Mock(), username_format="local_part", username_collision_policy="email")
+        self.assertFalse(issues)
+        self.assertEqual(actions[0].body["username"], "user@example.com")
+
+    def test_email_fallback_collision_still_fails(self):
+        existing = [user(False, username="user", email="first@example.com"),
+                    user(False, pk=2, username="user@example.com", email="second@example.com")]
+        actions, issues, _ = plan([google()], existing, "C123", Mock(),
+                                 username_format="local_part", username_collision_policy="email")
+        self.assertFalse(actions)
+        self.assertTrue(issues)
+
+    def test_excluded_and_disabled_users_do_not_force_email_fallback(self):
+        disabled = google("3", "user@disabled.example"); disabled["suspended"] = True
+        actions, issues, _ = plan([google(), google("2", "user@other.example"), disabled], [], "C123", Mock(),
+                                 username_format="local_part", google_exclusions={"2"},
+                                 username_collision_policy="email")
+        self.assertFalse(issues)
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0].body["username"], "user")
+
+    def test_invalid_collision_policy(self):
+        with self.assertRaises(SyncError):
+            plan([], [], "C123", Mock(), username_collision_policy="merge")
+
+    def test_google_email_exclusion_resolves_local_part_collision(self):
+        actions, issues, skipped = plan(
+            [google(), google("2", "user@other.example")], [], "C123", Mock(),
+            username_format="local_part", google_exclusions={"user@other.example"})
+        self.assertFalse(issues)
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0].body["username"], "user")
+        self.assertEqual(skipped[0]["reason"], "excluded_google_account")
+
+    def test_google_id_exclusion_survives_email_rename(self):
+        actions, issues, skipped = plan([google(email="new@example.com")], [user()],
+                                       "C123", Mock(), google_exclusions={"1"})
+        self.assertFalse(actions)
+        self.assertFalse(issues)
+        self.assertTrue(skipped)
+
+    def test_google_exclusion_prevents_existing_account_disable(self):
+        g = google(); g["suspended"] = True
+        actions, issues, _ = plan([g], [user()], "C123", Mock(),
+                                 google_exclusions={"user@example.com"})
+        self.assertFalse(actions)
+        self.assertFalse(issues)
+
+    def test_google_exclusion_prevents_deletion_handling(self):
+        for exclusion in ("1", "user@example.com"):
+            lookup = Mock()
+            actions, issues, _ = plan([], [user()], "C123", lookup,
+                                     google_exclusions={exclusion})
+            self.assertFalse(actions)
+            self.assertFalse(issues)
+            lookup.assert_not_called()
+
+    def test_google_email_exclusion_case_insensitive(self):
+        actions, issues, _ = plan([google(email="USER@Example.com")], [], "C123", Mock(),
+                                 google_exclusions={"user@example.com"})
+        self.assertFalse(actions)
+        self.assertFalse(issues)
     def test_local_part_username(self):
         actions, issues, _ = plan([google(email="mglants@example.com")], [], "C123", Mock(),
                                  username_format="local_part")

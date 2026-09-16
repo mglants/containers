@@ -12,8 +12,12 @@ password synchronization, group synchronization, or database access.
   New usernames use `USERNAME_FORMAT=email` (default, full email address) or
   `USERNAME_FORMAT=local_part` (`user@example.com` becomes `user`). Existing
   usernames remain unchanged, including after email renames or format changes.
-  Local-part collisions across domains or with existing usernames abort the run
-  before writes; usernames are never automatically merged or suffixed.
+  `USERNAME_COLLISION_POLICY=error` (default) aborts on username collisions.
+  Set it to `email` to use full email addresses for new accounts whose local
+  parts collide across eligible new users or with an existing Authentik username.
+  All new members of a collision use email, independent of listing order.
+  Existing usernames remain unchanged; a collision on the fallback email still
+  aborts. Identities are never merged or automatically suffixed.
   New accounts are external users with no passwords, groups, or roles.
 - Suspension, archival, or confirmed deletion disables a managed Authentik user.
   Missing users are individually checked: only HTTP 404 confirms deletion.
@@ -32,6 +36,13 @@ password synchronization, group synchronization, or database access.
   are protected. The default explicit exclusion is `akadmin`. Review all
   break-glass accounts before rollout. Excluding a previously managed user
   stops all subsequent lifecycle changes for that account.
+- `EXCLUDED_GOOGLE_USERS` skips Google accounts by comma-separated primary emails
+  (case-insensitive) or immutable Google user IDs. It skips creation **and all
+  updates/offboarding** of existing matched users, without deleting them. Use IDs
+  for exclusions that must survive email renames. For already-deleted Google users,
+  email exclusions match the last synchronized Authentik email. Aliases, local
+  parts, and wildcard patterns are not supported. Skips are logged with reason
+  `excluded_google_account` and do not reserve a new local-part username.
 - Set `attributes.google_workspace_sync.manual_hold: true` on a managed user
   to keep it disabled, including after Google restores it. If an administrator
   wants to keep an already sync-disabled user inactive, they **must set this
@@ -81,8 +92,10 @@ Runtime inputs:
 | `AUTHENTIK_URL` | Required Authentik HTTPS origin, e.g. `https://authentik.example.com`; no application default |
 | `AUTHENTIK_TOKEN` | Dedicated API token, injected from the Secret via `secretKeyRef` |
 | `EXCLUDED_USERS` | Comma-separated protected usernames or Authentik PKs |
+| `EXCLUDED_GOOGLE_USERS` | Comma-separated Google primary emails or immutable IDs; empty by default |
 | `CREATE_DISABLED_USERS` | `false` (default) skips new suspended/archived users; `true` creates them inactive |
 | `USERNAME_FORMAT` | `email` (default) or `local_part`; only affects newly created usernames |
+| `USERNAME_COLLISION_POLICY` | `error` (default) or `email`; email fallback applies to new local-part usernames |
 
 The Google scope is solely
 `https://www.googleapis.com/auth/admin.directory.user.readonly`.
@@ -129,7 +142,7 @@ From this container directory (`apps/google-authentik-sync` in the containers re
 
 ```sh
 python3 -m unittest discover -s . -v
-docker build -t YOUR_REGISTRY/google-authentik-sync:0.1.2 .
+docker build -t YOUR_REGISTRY/google-authentik-sync:0.1.4 .
 ```
 
 Deployment manifests remain in the separate Flux repository. From its root,
