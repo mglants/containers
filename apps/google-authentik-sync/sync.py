@@ -181,9 +181,13 @@ def desired(user, google_user, customer, identifier):
     return body
 
 
-def plan(google_users, users, customer, lookup, exclusions=frozenset()):
+def plan(google_users, users, customer, lookup, exclusions=frozenset(), create_disabled_users=False,
+         username_format="email"):
     """Complete read-only planning, including deletion confirmations, before writes."""
+    if username_format not in ("email", "local_part"):
+        raise SyncError("USERNAME_FORMAT must be email or local_part")
     actions, issues, skipped = [], [], []
+    planned_usernames = set()
     by_id, by_email, by_name = defaultdict(list), defaultdict(list), defaultdict(list)
     for user in users:
         state = marker(user)
@@ -196,6 +200,7 @@ def plan(google_users, users, customer, lookup, exclusions=frozenset()):
     assigned = set()
     for g in google_users:
         gid, email = g["id"], g["primaryEmail"].casefold()
+        username = email.split("@", 1)[0] if username_format == "local_part" else email
         if gids[gid] != 1 or emails[email] != 1:
             issues.append({"google_id": gid, "reason": "duplicate_google_identity"})
             continue
@@ -204,10 +209,13 @@ def plan(google_users, users, customer, lookup, exclusions=frozenset()):
             issues.append({"google_id": gid, "reason": "ambiguous_authentik_match"})
             continue
         user = matches[0] if matches else None
+        if not user and not create_disabled_users and (g["suspended"] or g.get("archived", False)):
+            skipped.append({"google_id": gid, "reason": "disabled_user_creation_disabled"})
+            continue
         if user and protected(user, exclusions):
             skipped.append({"pk": user["pk"], "reason": "protected"})
             continue
-        if not user and email in exclusions:
+        if not user and (email in exclusions or username in exclusions):
             skipped.append({"google_id": gid, "reason": "excluded_username"})
             continue
         if user:
@@ -219,12 +227,13 @@ def plan(google_users, users, customer, lookup, exclusions=frozenset()):
                 issues.append({"google_id": gid, "reason": "identity_collision"})
                 continue
             assigned.add(user["pk"])
-        elif by_name[email] or len(email) > 150:
+        elif by_name[username] or username in planned_usernames or not username or len(username) > 150:
             issues.append({"google_id": gid, "reason": "username_collision_or_length"})
             continue
         body = desired(user, g, customer, gid)
         if not user:
-            body.update(username=email, type="external", path="goauthentik.io/sources/google",
+            planned_usernames.add(username)
+            body.update(username=username, type="external", path="goauthentik.io/sources/google",
                         groups=[], roles=[])
             actions.append(Action("create", gid, body))
         elif any(user.get(k) != v for k, v in body.items()):
@@ -263,8 +272,10 @@ def execute(authentik, actions, exclusions):
         emit("applied", action=action.kind, google_id=action.google_id)
 
 
-def run(google, authentik, customer, exclusions, apply=False):
-    actions, issues, skipped = plan(google.users(), authentik.users(), customer, google.get, exclusions)
+def run(google, authentik, customer, exclusions, apply=False, create_disabled_users=False,
+        username_format="email"):
+    actions, issues, skipped = plan(google.users(), authentik.users(), customer, google.get,
+                                    exclusions, create_disabled_users, username_format)
     for item in skipped:
         emit("excluded", **item)
     for item in issues:
@@ -281,6 +292,13 @@ def run(google, authentik, customer, exclusions, apply=False):
     emit("success", mode="apply" if apply else "dry-run", actions=len(actions), excluded=len(skipped))
 
 
+def env_bool(name, default=False):
+    value = os.environ.get(name, str(default)).strip().lower()
+    if value not in ("true", "false"):
+        raise SyncError(f"{name} must be true or false")
+    return value == "true"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
@@ -292,6 +310,10 @@ def main():
         from google.oauth2 import service_account
         from google.auth.transport.requests import AuthorizedSession
 
+        create_disabled_users = env_bool("CREATE_DISABLED_USERS")
+        username_format = os.environ.get("USERNAME_FORMAT", "email").strip().lower()
+        if username_format not in ("email", "local_part"):
+            raise SyncError("USERNAME_FORMAT must be email or local_part")
         customer = os.environ["GOOGLE_CUSTOMER_ID"]
         if not customer.startswith("C") or customer == "CHANGE_ME":
             raise SyncError("An explicit Google customer ID (C...) is required")
@@ -306,7 +328,7 @@ def main():
         session.headers["Authorization"] = "Bearer " + token
         authentik = Authentik(HTTP(session, "Authentik"), os.environ["AUTHENTIK_URL"])
         exclusions = frozenset(v.strip().casefold() for v in os.environ.get("EXCLUDED_USERS", "akadmin").split(",") if v.strip())
-        run(google, authentik, customer, exclusions, args.apply)
+        run(google, authentik, customer, exclusions, args.apply, create_disabled_users, username_format)
         return 0
     except SyncError as exc:
         emit("failure", error=str(exc))

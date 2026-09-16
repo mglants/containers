@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from sync import (Action, Authentik, Google, HTTP, MARKER, OWNER, SyncError,
-                  execute, plan, run)
+                  env_bool, execute, plan, run)
 
 
 def google(identifier="1", email="user@example.com", **kw):
@@ -21,6 +21,42 @@ def user(managed=True, **kw):
 
 
 class PlannerTests(unittest.TestCase):
+    def test_local_part_username(self):
+        actions, issues, _ = plan([google(email="mglants@example.com")], [], "C123", Mock(),
+                                 username_format="local_part")
+        self.assertFalse(issues)
+        self.assertEqual(actions[0].body["username"], "mglants")
+        self.assertEqual(actions[0].body["email"], "mglants@example.com")
+
+    def test_local_part_collision_across_domains_aborts_writes(self):
+        g, ak = Mock(), Mock()
+        g.users.return_value = [google(), google("2", "user@other.example")]
+        ak.users.return_value = []
+        with patch("sync.emit"), self.assertRaises(SyncError):
+            run(g, ak, "C123", set(), apply=True, username_format="local_part")
+        ak.create.assert_not_called()
+
+    def test_local_part_existing_collision(self):
+        _, issues, _ = plan([google()], [user(False, username="user", email="other@example.com")],
+                             "C123", Mock(), username_format="local_part")
+        self.assertTrue(issues)
+
+    def test_local_part_preserves_existing_username(self):
+        actions, issues, _ = plan([google()], [user()], "C123", Mock(), username_format="local_part")
+        self.assertFalse(issues)
+        self.assertNotIn("username", actions[0].body)
+
+    def test_local_part_exclusions(self):
+        actions, issues, skipped = plan([google()], [], "C123", Mock(), {"user"},
+                                       username_format="local_part")
+        self.assertFalse(actions)
+        self.assertFalse(issues)
+        self.assertTrue(skipped)
+
+    def test_invalid_username_format(self):
+        with self.assertRaises(SyncError):
+            plan([google()], [], "C123", Mock(), username_format="invalid")
+
     def planning(self, gs=None, users=None, lookup=None, exclusions=frozenset()):
         return plan(gs if gs is not None else [google()], users or [], "C123",
                     lookup or Mock(return_value=None), exclusions)
@@ -108,9 +144,40 @@ class PlannerTests(unittest.TestCase):
 
     def test_new_disabled_user_can_be_restored(self):
         g = google(); g["suspended"] = True
-        created = self.planning([g])[0][0].body
+        created = plan([g], [], "C123", Mock(), create_disabled_users=True)[0][0].body
         updated = dict(created, pk=9, is_superuser=False)
         self.assertTrue(self.planning(users=[updated])[0][0].body["is_active"])
+
+    def test_skip_new_disabled_users_by_default(self):
+        for flag in ("suspended", "archived"):
+            with self.subTest(flag=flag):
+                g = google(); g[flag] = True
+                actions, issues, skipped = self.planning([g])
+                self.assertFalse(actions)
+                self.assertFalse(issues)
+                self.assertEqual(skipped[0]["reason"], "disabled_user_creation_disabled")
+
+    def test_existing_unmanaged_disabled_user_is_still_adopted(self):
+        g = google(); g["suspended"] = True
+        actions, issues, _ = self.planning([g], [user(False)])
+        self.assertFalse(issues)
+        self.assertFalse(actions[0].body["is_active"])
+
+    def test_opt_in_creates_archived_user(self):
+        actions, issues, _ = plan([google(archived=True)], [], "C123", Mock(), create_disabled_users=True)
+        self.assertFalse(issues)
+        self.assertEqual(actions[0].kind, "create")
+        self.assertFalse(actions[0].body["is_active"])
+
+    def test_boolean_environment_setting(self):
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertFalse(env_bool("CREATE_DISABLED_USERS"))
+        for value, expected in (("true", True), ("false", False), (" TRUE ", True)):
+            with patch.dict("os.environ", {"CREATE_DISABLED_USERS": value}):
+                self.assertEqual(env_bool("CREATE_DISABLED_USERS"), expected)
+        with patch.dict("os.environ", {"CREATE_DISABLED_USERS": "typo"}):
+            with self.assertRaises(SyncError):
+                env_bool("CREATE_DISABLED_USERS")
 
 
 class ClientTests(unittest.TestCase):

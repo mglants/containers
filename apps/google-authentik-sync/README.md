@@ -9,10 +9,18 @@ password synchronization, group synchronization, or database access.
 - First adoption requires a unique case-insensitive primary-email match. Later
   runs use the immutable Google user ID stored in `attributes.google_workspace_sync`.
 - Existing usernames, groups, roles, and unrelated attributes are preserved.
-  New usernames are full email addresses and remain unchanged after email renames.
+  New usernames use `USERNAME_FORMAT=email` (default, full email address) or
+  `USERNAME_FORMAT=local_part` (`user@example.com` becomes `user`). Existing
+  usernames remain unchanged, including after email renames or format changes.
+  Local-part collisions across domains or with existing usernames abort the run
+  before writes; usernames are never automatically merged or suffixed.
   New accounts are external users with no passwords, groups, or roles.
 - Suspension, archival, or confirmed deletion disables a managed Authentik user.
   Missing users are individually checked: only HTTP 404 confirms deletion.
+- New suspended or archived Google users are skipped by default. Set
+  `CREATE_DISABLED_USERS=true` to create them as inactive Authentik users instead.
+  Existing matched users are still adopted and disabled regardless of this setting.
+  A skipped user is created normally if Google later restores the account.
 - All Google and Authentik pages and deletion confirmations are read before any
   writes. Empty Google snapshots, failed reads, and identity conflicts abort the
   run. Never treat a failed request as an empty directory.
@@ -59,7 +67,7 @@ against your deployed Authentik version with a test user before production use.
    the secret editor; never paste it into a terminal transcript or commit it
    unencrypted. If Terraform manages the token, it also stores it in state.
 6. In the Flux deployment repository, edit
-   `apps/authentik/google-authentik-sync/app/base/secret.sops.yaml` using
+   `apps/authentik/authentik/google-authentik-sync/app/base/secret.sops.yaml` using
    `sops`, replacing both encrypted placeholders. The keys are
    `google-service-account.json` (the complete JSON) and `authentik-token`.
    No Vault is required.
@@ -73,6 +81,8 @@ Runtime inputs:
 | `AUTHENTIK_URL` | Required Authentik HTTPS origin, e.g. `https://authentik.example.com`; no application default |
 | `AUTHENTIK_TOKEN` | Dedicated API token, injected from the Secret via `secretKeyRef` |
 | `EXCLUDED_USERS` | Comma-separated protected usernames or Authentik PKs |
+| `CREATE_DISABLED_USERS` | `false` (default) skips new suspended/archived users; `true` creates them inactive |
+| `USERNAME_FORMAT` | `email` (default) or `local_part`; only affects newly created usernames |
 
 The Google scope is solely
 `https://www.googleapis.com/auth/admin.directory.user.readonly`.
@@ -119,21 +129,21 @@ From this container directory (`apps/google-authentik-sync` in the containers re
 
 ```sh
 python3 -m unittest discover -s . -v
-docker build -t YOUR_REGISTRY/google-authentik-sync:0.1.0 .
+docker build -t YOUR_REGISTRY/google-authentik-sync:0.1.2 .
 ```
 
 Deployment manifests remain in the separate Flux repository. From its root,
-validate them with `kustomize build apps/authentik/google-authentik-sync/app/base`.
+validate them with `kustomize build apps/authentik/authentik/google-authentik-sync/app/base`.
 
 Publish the image to your registry, then set the container `image` in that repository's
-`apps/authentik/google-authentik-sync/app/base/cronjob.yaml` to its immutable
+`apps/authentik/authentik/google-authentik-sync/app/base/cronjob.yaml` to its immutable
 `repository@sha256:...` reference. Add `imagePullSecrets` to the Pod spec if
 required. No registry or publication permission is assumed.
 Dependencies are fully pinned with hashes in `requirements.txt`; regenerate
 using `pip-compile --generate-hashes --strip-extras requirements.in` in this directory.
 
 For a local read-only preview, install the lock into an isolated Python 3.13
-virtual environment, supply the five variables above, and run:
+virtual environment, supply the required variables above, and run:
 
 ```sh
 python sync.py --dry-run
