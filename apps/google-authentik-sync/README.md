@@ -18,7 +18,10 @@ password synchronization, group synchronization, or database access.
   All new members of a collision use email, independent of listing order.
   Existing usernames remain unchanged; a collision on the fallback email still
   aborts. Identities are never merged or automatically suffixed.
-  New accounts are external users with no passwords, groups, or roles.
+  New accounts default to internal users with no passwords, groups, or roles.
+  `AUTHENTIK_USER_TYPE` selects `internal` or `external` and `AUTHENTIK_USER_PATH`
+  chooses the Authentik folder for new accounts. Existing account types and paths
+  are preserved; changing these settings is not a migration of earlier imports.
 - Suspension, archival, or confirmed deletion disables a managed Authentik user.
   Missing users are individually checked: only HTTP 404 confirms deletion.
 - New suspended or archived Google users are skipped by default. Set
@@ -91,6 +94,8 @@ Runtime inputs:
 | `GOOGLE_APPLICATION_CREDENTIALS` | Mounted service-account JSON filename |
 | `AUTHENTIK_URL` | Required Authentik HTTPS origin, e.g. `https://authentik.example.com`; no application default |
 | `AUTHENTIK_TOKEN` | Dedicated API token, injected from the Secret via `secretKeyRef` |
+| `AUTHENTIK_USER_TYPE` | New-account type: `internal` (default) or `external` |
+| `AUTHENTIK_USER_PATH` | Folder for new accounts; default `goauthentik.io/sources/google`, e.g. `employees/google` |
 | `EXCLUDED_USERS` | Comma-separated protected usernames or Authentik PKs |
 | `EXCLUDED_GOOGLE_USERS` | Comma-separated Google primary emails or immutable IDs; empty by default |
 | `CREATE_DISABLED_USERS` | `false` (default) skips new suspended/archived users; `true` creates them inactive |
@@ -142,7 +147,7 @@ From this container directory (`apps/google-authentik-sync` in the containers re
 
 ```sh
 python3 -m unittest discover -s . -v
-docker build -t YOUR_REGISTRY/google-authentik-sync:0.1.4 .
+docker build -t YOUR_REGISTRY/google-authentik-sync:0.1.5 .
 ```
 
 Deployment manifests remain in the separate Flux repository. From its root,

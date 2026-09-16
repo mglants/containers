@@ -21,6 +21,31 @@ def user(managed=True, **kw):
 
 
 class PlannerTests(unittest.TestCase):
+    def test_new_users_default_to_internal(self):
+        actions, issues, _ = plan([google()], [], "C123", Mock())
+        self.assertFalse(issues)
+        self.assertEqual(actions[0].body["type"], "internal")
+
+    def test_configurable_type_and_folder(self):
+        actions, issues, _ = plan([google()], [], "C123", Mock(),
+                                 user_type="external", user_path="employees/google")
+        self.assertFalse(issues)
+        self.assertEqual(actions[0].body["type"], "external")
+        self.assertEqual(actions[0].body["path"], "employees/google")
+
+    def test_type_and_folder_preserved_for_existing_users(self):
+        actions, issues, _ = plan([google()], [user(type="external", path="old-folder")],
+                                 "C123", Mock(), user_type="internal", user_path="new-folder")
+        self.assertFalse(issues)
+        self.assertNotIn("type", actions[0].body)
+        self.assertNotIn("path", actions[0].body)
+
+    def test_invalid_user_defaults(self):
+        for values in ({"user_type": "service_account"}, {"user_path": ""},
+                       {"user_path": "x" * 256}, {"user_path": " space "}):
+            with self.subTest(values=values), self.assertRaises(SyncError):
+                plan([google()], [], "C123", Mock(), **values)
+
     def test_email_fallback_is_order_independent(self):
         gs = [google(), google("2", "user@other.example")]
         for ordered in (gs, list(reversed(gs))):

@@ -182,12 +182,14 @@ def desired(user, google_user, customer, identifier):
 
 
 def plan(google_users, users, customer, lookup, exclusions=frozenset(), create_disabled_users=False,
-         username_format="email", google_exclusions=frozenset(), username_collision_policy="error"):
+         username_format="email", google_exclusions=frozenset(), username_collision_policy="error",
+         user_type="internal", user_path="goauthentik.io/sources/google"):
     """Complete read-only planning, including deletion confirmations, before writes."""
     if username_format not in ("email", "local_part"):
         raise SyncError("USERNAME_FORMAT must be email or local_part")
     if username_collision_policy not in ("error", "email"):
         raise SyncError("USERNAME_COLLISION_POLICY must be error or email")
+    validate_user_defaults(user_type, user_path)
     actions, issues, skipped = [], [], []
     planned_usernames = set()
     by_id, by_email, by_name = defaultdict(list), defaultdict(list), defaultdict(list)
@@ -254,7 +256,7 @@ def plan(google_users, users, customer, lookup, exclusions=frozenset(), create_d
         body = desired(user, g, customer, gid)
         if not user:
             planned_usernames.add(username)
-            body.update(username=username, type="external", path="goauthentik.io/sources/google",
+            body.update(username=username, type=user_type, path=user_path,
                         groups=[], roles=[])
             actions.append(Action("create", gid, body))
         elif any(user.get(k) != v for k, v in body.items()):
@@ -299,10 +301,11 @@ def execute(authentik, actions, exclusions):
 
 
 def run(google, authentik, customer, exclusions, apply=False, create_disabled_users=False,
-        username_format="email", google_exclusions=frozenset(), username_collision_policy="error"):
+        username_format="email", google_exclusions=frozenset(), username_collision_policy="error",
+        user_type="internal", user_path="goauthentik.io/sources/google"):
     actions, issues, skipped = plan(google.users(), authentik.users(), customer, google.get,
                                     exclusions, create_disabled_users, username_format, google_exclusions,
-                                    username_collision_policy)
+                                    username_collision_policy, user_type, user_path)
     for item in skipped:
         emit("excluded", **item)
     for item in issues:
@@ -317,6 +320,13 @@ def run(google, authentik, customer, exclusions, apply=False, create_disabled_us
     if apply:
         execute(authentik, actions, exclusions)
     emit("success", mode="apply" if apply else "dry-run", actions=len(actions), excluded=len(skipped))
+
+
+def validate_user_defaults(user_type, user_path):
+    if user_type not in ("internal", "external"):
+        raise SyncError("AUTHENTIK_USER_TYPE must be internal or external")
+    if not user_path or len(user_path) > 255 or user_path != user_path.strip():
+        raise SyncError("AUTHENTIK_USER_PATH must be a nonempty path of at most 255 characters without surrounding whitespace")
 
 
 def env_bool(name, default=False):
@@ -338,6 +348,9 @@ def main():
         from google.auth.transport.requests import AuthorizedSession
 
         create_disabled_users = env_bool("CREATE_DISABLED_USERS")
+        user_type = os.environ.get("AUTHENTIK_USER_TYPE", "internal").strip().lower()
+        user_path = os.environ.get("AUTHENTIK_USER_PATH", "goauthentik.io/sources/google")
+        validate_user_defaults(user_type, user_path)
         username_format = os.environ.get("USERNAME_FORMAT", "email").strip().lower()
         if username_format not in ("email", "local_part"):
             raise SyncError("USERNAME_FORMAT must be email or local_part")
@@ -360,7 +373,7 @@ def main():
         exclusions = frozenset(v.strip().casefold() for v in os.environ.get("EXCLUDED_USERS", "akadmin").split(",") if v.strip())
         google_exclusions = frozenset(v.strip().casefold() for v in os.environ.get("EXCLUDED_GOOGLE_USERS", "").split(",") if v.strip())
         run(google, authentik, customer, exclusions, args.apply, create_disabled_users,
-            username_format, google_exclusions, username_collision_policy)
+            username_format, google_exclusions, username_collision_policy, user_type, user_path)
         return 0
     except SyncError as exc:
         emit("failure", error=str(exc))
