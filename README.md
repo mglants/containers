@@ -50,6 +50,7 @@ Container | Channel | Image
 [cni-plugins](https://github.com/mglants/containers/pkgs/container/cni-plugins) | stable | ghcr.io/mglants/cni-plugins
 [emonoda](https://github.com/mglants/containers/pkgs/container/emonoda) | stable | ghcr.io/mglants/emonoda
 [gammu-telegram](https://github.com/mglants/containers/pkgs/container/gammu-telegram) | stable | ghcr.io/mglants/gammu-telegram
+[google-authentik-sync](https://github.com/mglants/containers/pkgs/container/google-authentik-sync) | stable | ghcr.io/mglants/google-authentik-sync
 [kea-dhcp](https://github.com/mglants/containers/pkgs/container/kea-dhcp) | stable | ghcr.io/mglants/kea-dhcp
 [kea-dhcp-sidecar](https://github.com/mglants/containers/pkgs/container/kea-dhcp-sidecar) | stable | ghcr.io/mglants/kea-dhcp-sidecar
 [kube-vip-watcher](https://github.com/mglants/containers/pkgs/container/kube-vip-watcher) | stable | ghcr.io/mglants/kube-vip-watcher
