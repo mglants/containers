@@ -1,0 +1,23 @@
+---
+command:
+  non-root:
+    exec: id -u
+    exit-status: 0
+    stdout:
+      - "65532"
+  cli-help:
+    exec: /usr/local/bin/container-entrypoint --help
+    exit-status: 0
+    stdout:
+      - "--dry-run"
+      - "--apply"
+  unit-tests:
+    exec: python -m unittest discover -s /app -q
+    exit-status: 0
+    stderr:
+      - "OK"
+  missing-configuration:
+    exec: env -i PATH=/usr/local/bin:/usr/bin:/bin /usr/local/bin/container-entrypoint --dry-run
+    exit-status: 1
+    stdout:
+      - '"event": "failure"'
