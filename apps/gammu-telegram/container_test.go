@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("gammu-telegram:v0.0.3")
+	image := helpers.GetTestImage("ghcr.io/mglants/gammu-telegram:rolling")
 	helpers.RequireCommandSucceeds(t, image, nil, "gammu-smsd", "--version")
 }

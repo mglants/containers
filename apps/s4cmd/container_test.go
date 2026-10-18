@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("s4cmd:2.1.0")
+	image := helpers.GetTestImage("ghcr.io/mglants/s4cmd:rolling")
 	helpers.RequireCommandSucceeds(t, image, nil, "/usr/bin/s4cmd", "--help")
 }

@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("rpi-dnsmasq:v1.52")
+	image := helpers.GetTestImage("ghcr.io/mglants/rpi-dnsmasq:rolling")
 	helpers.RequireFileExists(t, image, "/var/lib/tftpboot/ipxe-arm64.efi")
 }

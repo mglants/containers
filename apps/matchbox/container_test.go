@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("matchbox:v0.11.0")
+	image := helpers.GetTestImage("ghcr.io/mglants/matchbox:rolling")
 	helpers.RequireHTTPEndpoint(t, image, helpers.HTTPTestConfig{Port: "8080", Path: "/"}, &helpers.ContainerConfig{Env: map[string]string{"MATCHBOX_ADDRESS": "0.0.0.0:8080"}})
 }

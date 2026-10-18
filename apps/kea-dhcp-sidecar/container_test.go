@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("kea-dhcp-sidecar:v0.0.2")
+	image := helpers.GetTestImage("ghcr.io/mglants/kea-dhcp-sidecar:rolling")
 	helpers.RequireCommandSucceeds(t, image, nil, "/bin/sh", "-ec", "sh -n /app/generate_config.sh; kubectl version --client=true")
 }

@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("mktxp:v1.2.19")
+	image := helpers.GetTestImage("ghcr.io/mglants/mktxp:rolling")
 	helpers.RequireCommandSucceeds(t, image, nil, "python3", "/usr/local/bin/mktxp", "--help")
 }

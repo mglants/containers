@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("google-authentik-sync:0.1.5")
+	image := helpers.GetTestImage("ghcr.io/mglants/google-authentik-sync:rolling")
 	helpers.RequireCommandSucceeds(t, image, nil, "python", "-m", "unittest", "discover", "-s", "/app", "-q")
 }

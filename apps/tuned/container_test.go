@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("tuned:v2.26.0")
+	image := helpers.GetTestImage("ghcr.io/mglants/tuned:rolling")
 	helpers.RequireCommandSucceeds(t, image, nil, "tuned", "--version")
 }

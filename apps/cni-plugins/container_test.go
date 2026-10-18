@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("cni-plugins:v1.5.1")
+	image := helpers.GetTestImage("ghcr.io/mglants/cni-plugins:rolling")
 	helpers.RequireFileExists(t, image, "/plugins/macvlan")
 }

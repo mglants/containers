@@ -6,6 +6,6 @@ import (
 )
 
 func TestImage(t *testing.T) {
-	image := helpers.GetTestImage("rw-temporary-subscription-app:v2.0.0")
+	image := helpers.GetTestImage("ghcr.io/mglants/rw-temporary-subscription-app:rolling")
 	helpers.RequireHTTPEndpoint(t, image, helpers.HTTPTestConfig{Port: "3001", Path: "/api/health"}, nil)
 }
