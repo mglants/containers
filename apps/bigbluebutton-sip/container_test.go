@@ -12,5 +12,6 @@ func TestComponent(t *testing.T) {
 test "$(id -u)" -ne 0
 bbb-runtime sip --render-only
 livekit-sip --help
+livekit-sip --version
 `)
 }

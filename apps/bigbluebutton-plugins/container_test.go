@@ -14,4 +14,7 @@ bbb-runtime plugins --render-only
 nginx -t
 test -s /usr/share/nginx/html/live-transcription/LiveTranscriptionPlugin.js
 `)
+	helpers.RequireHTTPEndpoint(t, image, helpers.HTTPTestConfig{Port: "8080", Path: "/live-transcription/LiveTranscriptionPlugin.js"}, &helpers.ContainerConfig{Env: map[string]string{
+		"BBB_CONFIG_MODE": "env", "DOMAIN": "meet.example.test",
+	}})
 }

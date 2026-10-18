@@ -37,25 +37,32 @@ image.
 PostgreSQL, Redis, Hasura, LiveKit and Greenlight use their upstream images.
 Provider transcription and SIP require their own credentials/network setup.
 
+## SIP compatibility
+
+The image uses LiveKit SIP v1.20.0. `build/patches/no-pin-sub_sip.patch` ports
+BBB 4.0's subscription-wait switch to that source tag; the runtime config
+disables waiting for a track subscription before accepting a call without a PIN.
+The patch must continue to apply when Renovate updates SIP.
+
 ## Build and test
 
 From the repository root:
 
 ```sh
-mise run local-build bigbluebutton-web
+mise run local-build bigbluebutton-sip
 ```
 
 Or build one target directly:
 
 ```sh
-cd apps/bigbluebutton-web
+cd apps/bigbluebutton-sip
 docker buildx bake --load image-local
-TEST_IMAGE=bigbluebutton-web:v4.0.0 go test -count=1 -v .
+TEST_IMAGE=bigbluebutton-sip:v4.0.0 go test -count=1 -v .
 ```
 
 The per-image Bake definition selects a native Dockerfile target and passes the
 normalized `VERSION`. Direct Dockerfile builds must provide `--build-arg
-VERSION=4.0.0` and `--target web`; there is no default version or CHANNEL selector.
+VERSION=4.0.0` and `--target sip`; there is no default version or CHANNEL selector.
 Cold builds download source archives, dependencies and base images.
 
 ## Versions and CI

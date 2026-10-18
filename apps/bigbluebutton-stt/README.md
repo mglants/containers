@@ -37,25 +37,40 @@ image.
 PostgreSQL, Redis, Hasura, LiveKit and Greenlight use their upstream images.
 Provider transcription and SIP require their own credentials/network setup.
 
+## Python compatibility
+
+Python 3.13 is the newest release line with binary wheels for the upstream
+locked dependencies (including PyAV). Python 3.15 cannot install the locked
+`livekit-blingfire` release. Keep `uv sync --frozen` and review interpreter
+upgrades alongside upstream lockfile changes.
+
+## Runtime footprint
+
+`uv` installs the frozen Python environment during the build and is removed
+in the same layer. The runtime keeps the Python environment and transcription
+dependencies.
+
+Go executables are built without debug symbols.
+
 ## Build and test
 
 From the repository root:
 
 ```sh
-mise run local-build bigbluebutton-web
+mise run local-build bigbluebutton-stt
 ```
 
 Or build one target directly:
 
 ```sh
-cd apps/bigbluebutton-web
+cd apps/bigbluebutton-stt
 docker buildx bake --load image-local
-TEST_IMAGE=bigbluebutton-web:v4.0.0 go test -count=1 -v .
+TEST_IMAGE=bigbluebutton-stt:v4.0.0 go test -count=1 -v .
 ```
 
 The per-image Bake definition selects a native Dockerfile target and passes the
 normalized `VERSION`. Direct Dockerfile builds must provide `--build-arg
-VERSION=4.0.0` and `--target web`; there is no default version or CHANNEL selector.
+VERSION=4.0.0` and `--target stt`; there is no default version or CHANNEL selector.
 Cold builds download source archives, dependencies and base images.
 
 ## Versions and CI

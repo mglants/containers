@@ -2,7 +2,7 @@
 # Source-built BigBlueButton bootstrap; version and target are selected by Bake.
 ARG VERSION
 # renovate: datasource=github-releases depName=hasura/graphql-engine
-ARG HASURA_VERSION=v2.49.3
+ARG HASURA_VERSION=v2.50.3
 
 FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS bbb-source
 ARG VERSION
@@ -20,7 +20,7 @@ ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
 WORKDIR /source
 COPY runtime/config/ ./
 RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
-    go test . && go build -trimpath -o /out/bbb-runtime .
+    go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
 
 FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS minimal-runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini \

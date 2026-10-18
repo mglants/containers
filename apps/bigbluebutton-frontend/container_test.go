@@ -15,4 +15,7 @@ nginx -t
 test -s /usr/share/bigbluebutton/html5-client/index.html
 test -s /var/bigbluebutton/playback/presentation/2.3/index.html
 `)
+	helpers.RequireCommandSucceeds(t, image, &helpers.ContainerConfig{Env: map[string]string{
+		"BBB_CONFIG_MODE": "env", "DOMAIN": "meet.example.test", "DNS_RESOLVER": "127.0.0.11",
+	}}, "/bin/sh", "-ec", "bbb-runtime frontend --render-only; nginx -t")
 }

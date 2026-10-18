@@ -37,25 +37,40 @@ image.
 PostgreSQL, Redis, Hasura, LiveKit and Greenlight use their upstream images.
 Provider transcription and SIP require their own credentials/network setup.
 
+## LiveKit compatibility
+
+Recorder v0.17.0 requires LiveKit server 1.13 or newer, as documented in the
+[recorder v0.16.0 release notes](https://github.com/bigbluebutton/bbb-webrtc-recorder/releases/tag/v0.16.0).
+Use a compatible server when deploying or testing this image.
+
+## Runtime footprint
+
+The runtime uses `scratch` with static Go executables, static Tini, CA
+certificates, native configuration paths and a writable `/tmp`. It runs as
+UID 10001 and has no shell or package manager. Configuration rendering and
+parsing by the recorder are covered by the image tests.
+
+Go executables are built without debug symbols.
+
 ## Build and test
 
 From the repository root:
 
 ```sh
-mise run local-build bigbluebutton-web
+mise run local-build bigbluebutton-recorder
 ```
 
 Or build one target directly:
 
 ```sh
-cd apps/bigbluebutton-web
+cd apps/bigbluebutton-recorder
 docker buildx bake --load image-local
-TEST_IMAGE=bigbluebutton-web:v4.0.0 go test -count=1 -v .
+TEST_IMAGE=bigbluebutton-recorder:v4.0.0 go test -count=1 -v .
 ```
 
 The per-image Bake definition selects a native Dockerfile target and passes the
 normalized `VERSION`. Direct Dockerfile builds must provide `--build-arg
-VERSION=4.0.0` and `--target web`; there is no default version or CHANNEL selector.
+VERSION=4.0.0` and `--target recorder`; there is no default version or CHANNEL selector.
 Cold builds download source archives, dependencies and base images.
 
 ## Versions and CI

@@ -2,7 +2,7 @@
 # Source-built BigBlueButton frontend; version and target are selected by Bake.
 ARG VERSION
 # renovate: datasource=github-tags depName=bigbluebutton/bbb-playback
-ARG PLAYBACK_VERSION=v5.4.7
+ARG PLAYBACK_VERSION=v5.4.8
 
 FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS bbb-source
 ARG VERSION
@@ -24,7 +24,7 @@ ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
 WORKDIR /source
 COPY runtime/config/ ./
 RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
-    go test . && go build -trimpath -o /out/bbb-runtime .
+    go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
 
 FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS node-builder
 ARG VERSION
@@ -38,6 +38,9 @@ FROM node-builder AS build-frontend
 COPY build/patch-client.py /build/patch-client.py
 RUN python3 /build/patch-client.py
 RUN --mount=type=cache,id=bbb-npm-frontend,target=/root/.npm,sharing=locked bash /build/build-node.sh frontend
+
+# Browser source maps are debugging artifacts; keep shipped application assets.
+RUN find /out -type f \( -name "*.map" -o -name "*.map.gz" -o -name "*.map.br" \) -delete
 
 FROM node-builder AS build-playback
 ARG PLAYBACK_VERSION
@@ -63,7 +66,10 @@ RUN --mount=type=cache,id=bbb-npm-playback,target=/root/.npm,sharing=locked \
     cd /sources/playback && npm ci --no-audit --no-fund \
     && python3 /tmp/bbb-build-playback.py && rm /tmp/bbb-build-playback.py
 
-FROM nginx:1.29-bookworm@sha256:8adbdcb969e2676478ee2c7ad333956f0c8e0e4c5a7463f4611d7a2e7a7ff5dc AS frontend
+# Browser source maps are debugging artifacts; keep shipped application assets.
+RUN find /sources/playback/build -type f \( -name "*.map" -o -name "*.map.gz" -o -name "*.map.br" \) -delete
+
+FROM nginx:1.31-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d AS frontend
 COPY --from=build-frontend /out/client/ /usr/share/bigbluebutton/html5-client/
 COPY --from=build-playback /sources/playback/build/ /var/bigbluebutton/playback/presentation/2.3/
 COPY --from=build-frontend /out/dashboard/ /var/bigbluebutton/learning-dashboard/

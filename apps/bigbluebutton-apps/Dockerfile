@@ -31,7 +31,7 @@ ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
 WORKDIR /source
 COPY runtime/config/ ./
 RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
-    go test . && go build -trimpath -o /out/bbb-runtime .
+    go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
 
 FROM bigbluebutton/bbb-build:v4.0.x-release--2026-10-08-103605@sha256:47672819d9c4a183f9252d8fca3cb1a64eb29739d810692936093734019f8c76 AS jvm-common
 ARG VERSION

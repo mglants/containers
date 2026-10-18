@@ -42,20 +42,20 @@ Provider transcription and SIP require their own credentials/network setup.
 From the repository root:
 
 ```sh
-mise run local-build bigbluebutton-web
+mise run local-build bigbluebutton-bootstrap
 ```
 
 Or build one target directly:
 
 ```sh
-cd apps/bigbluebutton-web
+cd apps/bigbluebutton-bootstrap
 docker buildx bake --load image-local
-TEST_IMAGE=bigbluebutton-web:v4.0.0 go test -count=1 -v .
+TEST_IMAGE=bigbluebutton-bootstrap:v4.0.0 go test -count=1 -v .
 ```
 
 The per-image Bake definition selects a native Dockerfile target and passes the
 normalized `VERSION`. Direct Dockerfile builds must provide `--build-arg
-VERSION=4.0.0` and `--target web`; there is no default version or CHANNEL selector.
+VERSION=4.0.0` and `--target bootstrap`; there is no default version or CHANNEL selector.
 Cold builds download source archives, dependencies and base images.
 
 ## Versions and CI

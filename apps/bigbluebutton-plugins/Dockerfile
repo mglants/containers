@@ -9,7 +9,7 @@ ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
 WORKDIR /source
 COPY runtime/config/ ./
 RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
-    go test . && go build -trimpath -o /out/bbb-runtime .
+    go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
 
 FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS addon-sources
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 bzip2 && rm -rf /var/lib/apt/lists/*
@@ -22,7 +22,7 @@ WORKDIR /app
 COPY --from=addon-sources /sources/transcription-plugin/ ./
 RUN --mount=type=cache,id=bbb-npm-addons,target=/root/.npm npm ci --no-audit --no-fund && npm run build-bundle
 
-FROM nginx:1.29-bookworm@sha256:8adbdcb969e2676478ee2c7ad333956f0c8e0e4c5a7463f4611d7a2e7a7ff5dc AS plugins
+FROM nginx:1.31-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d AS plugins
 COPY --from=build-plugins /app/dist/ /usr/share/nginx/html/live-transcription/
 COPY build/plugins.conf /etc/nginx/nginx.conf
 USER root

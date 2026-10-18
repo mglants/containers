@@ -6,7 +6,7 @@ ARG PRESENTATION_VIDEO_VERSION=5.1.0-rc.4
 # renovate: datasource=github-tags depName=bigbluebutton/perfect-freehand-python
 ARG PERFECT_FREEHAND_VERSION=1.2.0
 # renovate: datasource=github-tags depName=Matroska-Org/foundation-source versioning=regex:^mkclean-(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$
-ARG MKCLEAN_VERSION=mkclean-0.8.10
+ARG MKCLEAN_VERSION=mkclean-0.9.0
 
 FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS bbb-source
 ARG VERSION
@@ -16,7 +16,7 @@ RUN mkdir -p /sources/bbb && tar --no-same-owner -xf /tmp/bbb.tar --strip-compon
 
 FROM bbb-source AS sources
 ARG MKCLEAN_VERSION
-ADD https://downloads.sourceforge.net/project/matroska/mkclean/${MKCLEAN_VERSION}.tar.bz2 /tmp/mkclean.tar
+ADD https://codeload.github.com/Matroska-Org/foundation-source/tar.gz/refs/tags/${MKCLEAN_VERSION} /tmp/mkclean.tar
 RUN mkdir -p /sources/mkclean && tar --no-same-owner -xf /tmp/mkclean.tar --strip-components=1 -C /sources/mkclean && rm /tmp/mkclean.tar
 
 FROM golang:1.27-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build-runtime
@@ -24,27 +24,30 @@ ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
 WORKDIR /source
 COPY runtime/config/ ./
 RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
-    go test . && go build -trimpath -o /out/bbb-runtime .
+    go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
 
-FROM ruby:3.2-slim-bookworm@sha256:84140472007d27c7ec641dbc606a47ff9c0aa5f358445947b7350392fa5115e5 AS build-recordings
+# BBB 4.0's Gemfile.lock contains gems that require Ruby < 4.0.
+FROM ruby:3.4-slim-bookworm@sha256:22165c5f904d76a8a02fbdd419d0269481369523fd66978232d16c88099730e2 AS build-recordings
 ARG VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libsystemd-dev libffi-dev libxml2-dev libxslt1-dev zlib1g-dev python3 \
+    build-essential cmake libsystemd-dev libffi-dev libxml2-dev libxslt1-dev zlib1g-dev python3 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=sources /sources/bbb/record-and-playback/ /sources/bbb/record-and-playback/
 COPY --from=sources /sources/mkclean/ /source-mkclean/
 COPY build/stage-recordings.py /build/stage-recordings.py
 RUN python3 /build/stage-recordings.py
-RUN cd /source-mkclean && sed -i 's/\r//g' mkclean/configure.compiled \
-    && ./mkclean/configure.compiled && make -C mkclean \
-    && cp release/gcc_linux_x64/mkclean /out/mkclean
+RUN cmake -S /source-mkclean -B /tmp/mkclean-build -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /tmp/mkclean-build --target mkclean \
+    && cp /tmp/mkclean-build/mkclean/mkclean /out/mkclean
 WORKDIR /out/core
+
+# Match the BUNDLED WITH version in upstream BBB's Gemfile.lock.
 RUN gem install bundler -v 2.4.20 --no-document \
     && bundle config set --local deployment true && bundle config set --local without test \
     && bundle install && bundle clean \
     && rm -rf vendor/bundle/ruby/*/cache && find vendor/bundle -name '*.o' -delete
 
-FROM ruby:3.2-slim-bookworm@sha256:84140472007d27c7ec641dbc606a47ff9c0aa5f358445947b7350392fa5115e5 AS recordings-base
+FROM ruby:3.4-slim-bookworm@sha256:22165c5f904d76a8a02fbdd419d0269481369523fd66978232d16c88099730e2 AS recordings-base
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates tini libsystemd0 libffi8 ffmpeg imagemagick poppler-utils rsync \
     python3 python3-attr python3-cairo python3-gi python3-gi-cairo python3-icu python3-lxml \

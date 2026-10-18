@@ -13,7 +13,7 @@ ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
 WORKDIR /source
 COPY runtime/config/ ./
 RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
-    go test . && go build -trimpath -o /out/bbb-runtime .
+    go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
 
 FROM sources AS runtime-defaults
 # Inline Python content is supplied by the Dockerfile, not the build context.
@@ -35,8 +35,12 @@ COPY build/build-node.sh /build/build-node.sh
 FROM node-builder AS build-annotations
 RUN --mount=type=cache,id=bbb-npm,target=/root/.npm,sharing=locked bash /build/build-node.sh annotations
 
-FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS node-runtime
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini \
+# Runtime needs Node itself; npm, Yarn and development headers stay in builders.
+FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS node-binary
+
+FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587 AS node-runtime
+COPY --from=node-binary /usr/local/bin/node /usr/local/bin/node
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini libstdc++6 libatomic1 \
     && rm -rf /var/lib/apt/lists/* && groupadd -g 10001 bbb && useradd -u 10001 -g bbb -M -d /tmp bbb
 ENV NODE_ENV=production HOME=/tmp LANG=C.UTF-8
 USER 10001:10001
@@ -52,6 +56,7 @@ COPY --from=sources /sources/bbb/build/packages-template/bbb-export-annotations/
 COPY --from=sources /sources/bbb/bigbluebutton-config/slides/ /usr/share/bigbluebutton/blank/
 USER root
 COPY --from=build-runtime /out/bbb-runtime /usr/local/bin/bbb-runtime
+COPY --from=node-binary /usr/local/LICENSE /usr/local/share/licenses/node/LICENSE
 COPY --chmod=755 runtime/install-config.sh /usr/share/bbb-container/install-config.sh
 RUN /usr/share/bbb-container/install-config.sh annotations
 COPY --from=runtime-defaults /runtime-defaults/ /usr/share/bbb-container/defaults/
