@@ -37,6 +37,21 @@ image.
 PostgreSQL, Redis, Hasura, LiveKit and Greenlight use their upstream images.
 Provider transcription and SIP require their own credentials/network setup.
 
+## Database and metadata bootstrap
+
+`bbb-bootstrap all` initializes empty BBB/BlockNote schemas and applies Hasura
+metadata. `schema` and `metadata` run those phases separately. `bbb_graphql` and
+`blocknote_app` wait for the corresponding schema and verify its digest before a
+workload starts. The schemas come from this image's pinned BBB source version.
+An existing matching schema is preserved; an unknown or changed schema fails
+without resetting data. This command does not create databases or migrate a
+changed schema; the deployment provisions databases and manages upgrades.
+
+Supply native `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` (or its supported secret
+file), `HASURA_SECRET` and optionally `HASURA_ENDPOINT` (default
+`http://hasura:8085`). All temporary files are under writable, executable `/tmp`;
+Hasura's CLI downloads its matching CLI extension on first use.
+
 ## Build and test
 
 From the repository root:

@@ -37,6 +37,7 @@ COPY --from=sources /sources/bbb/bbb-graphql-server/ /usr/share/bbb-graphql-serv
 COPY --from=sources /sources/bbb/bbb-shared-notes-server/blocknote_schema.sql /usr/share/bbb-container/blocknote_schema.sql
 USER root
 COPY --from=build-runtime /out/bbb-runtime /usr/local/bin/bbb-runtime
+COPY --chmod=755 runtime/bootstrap.py /usr/local/bin/bbb-bootstrap
 USER 10001:10001
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/bbb-runtime", "bootstrap"]
 CMD ["hasura", "version", "--skip-update-check"]

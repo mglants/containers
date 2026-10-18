@@ -13,6 +13,7 @@ test "$(id -u)" -ne 0
 bbb-runtime bootstrap --render-only
 hasura version --skip-update-check
 psql --version
+bbb-bootstrap --help
 test -s /usr/share/bbb-graphql-server/bbb_schema.sql
 `)
 }
