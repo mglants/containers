@@ -1,0 +1,78 @@
+# syntax=docker/dockerfile:1.7
+# Source-built BigBlueButton web; version and target are selected by Bake.
+ARG VERSION
+
+FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS sources
+ARG VERSION
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 bzip2 && rm -rf /var/lib/apt/lists/*
+ADD https://codeload.github.com/bigbluebutton/bigbluebutton/tar.gz/refs/tags/v${VERSION} /tmp/bbb.tar
+RUN mkdir -p /sources/bbb && tar --no-same-owner -xf /tmp/bbb.tar --strip-components=1 -C /sources/bbb && rm /tmp/bbb.tar
+
+FROM sources AS client-settings
+# Inline Python content is supplied by the Dockerfile, not the build context.
+# droast ignore=DF077
+COPY <<'PY' /tmp/bbb-build-1.py
+import os
+from pathlib import Path
+version = os.environ['VERSION']
+settings = Path('/sources/bbb/bigbluebutton-html5/private/config/settings.yml').read_text()
+values = {'HTML5_FULL_BBB_VERSION': version,
+          'HTML5_CLIENT_VERSION': version}
+for marker, value in values.items():
+    assert marker in settings, f'Missing expected client setting: {marker}'
+    settings = settings.replace(marker, value)
+Path('/client-settings.yml').write_text(settings)
+Path('/bigbluebutton-release').write_text('BIGBLUEBUTTON_RELEASE=' + version + '\n')
+PY
+RUN python3 /tmp/bbb-build-1.py && rm /tmp/bbb-build-1.py
+
+FROM golang:1.27-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build-runtime
+ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
+WORKDIR /source
+COPY runtime/config/ ./
+RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
+    go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
+
+FROM bigbluebutton/bbb-build:v4.0.x-release--2026-10-08-103605@sha256:47672819d9c4a183f9252d8fca3cb1a64eb29739d810692936093734019f8c76 AS jvm-common
+ARG VERSION
+USER root
+COPY --from=sources /sources/bbb /source
+COPY build/build-jvm.sh /build/build-jvm.sh
+RUN bash /build/build-jvm.sh common
+
+FROM jvm-common AS build-web
+RUN bash /build/build-jvm.sh web
+
+FROM eclipse-temurin:21-jre-noble@sha256:35501d3f93173b420ac9001658eb68157e813316b865087e345c187fca422c4c AS java-runtime
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini \
+    && rm -rf /var/lib/apt/lists/* && groupadd -g 10001 bbb && useradd -u 10001 -g bbb -M -d /tmp bbb \
+    && mkdir -p /etc/bigbluebutton /var/bigbluebutton /var/log/bigbluebutton \
+    && chown 10001:10001 /etc/bigbluebutton /var/bigbluebutton /var/log/bigbluebutton
+ENV HOME=/tmp LANG=C.UTF-8
+USER 10001:10001
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+FROM java-runtime AS web
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libreoffice-impress libreoffice-writer imagemagick ghostscript poppler-utils zip unzip file potrace \
+    fonts-crosextra-carlito fonts-crosextra-caladea fonts-noto && rm -rf /var/lib/apt/lists/*
+COPY --from=build-web /out/web/ /usr/share/bbb-web/
+COPY --from=build-web /out/prescheck/ /usr/share/prescheck/
+COPY --from=sources /sources/bbb/bigbluebutton-config/slides/ /usr/share/bigbluebutton/blank/
+COPY --chmod=755 runtime/run-command.sh /usr/share/bbb-web/run-in-systemd.sh
+COPY --chmod=755 runtime/convert-office.sh /usr/share/bbb-libreoffice-conversion/convert.sh
+COPY runtime/logback.xml /etc/bigbluebutton/logback.xml
+COPY --from=client-settings /bigbluebutton-release /etc/bigbluebutton/bigbluebutton-release
+RUN chmod 755 /usr/share/prescheck/prescheck.sh \
+    && sed -i '/pattern="PDF"/s/rights="none"/rights="write"/' /etc/ImageMagick-6/policy.xml \
+    && sed -i '/potrace/d' /etc/ImageMagick-6/delegates.xml
+USER 10001:10001
+WORKDIR /usr/share/bbb-web
+USER root
+COPY --from=build-runtime /out/bbb-runtime /usr/local/bin/bbb-runtime
+COPY --chmod=755 runtime/install-config.sh /usr/share/bbb-container/install-config.sh
+RUN /usr/share/bbb-container/install-config.sh web
+USER 10001:10001
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/bbb-runtime", "web"]
+CMD ["java", "-Dgrails.env=prod", "-Dserver.address=0.0.0.0", "-Dserver.port=8090", "-Dspring.main.allow-circular-references=true", "-Dlogging.config=/etc/bigbluebutton/logback.xml", "-Dlogback.configurationFile=/etc/bigbluebutton/logback.xml", "-cp", ".", "org.springframework.boot.loader.launch.WarLauncher"]

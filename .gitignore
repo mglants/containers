@@ -1,7 +1,4 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-.goss
+.cache
+.claude
 .private
+docker-bake.json

@@ -1,13 +1,8 @@
-<!---
-NOTE: AUTO-GENERATED FILE
-to edit this file, instead edit its template at: ./ci/templates/README.md.j2
--->
 <div align="center">
-
 
 ## Containers
 
-_A Collection of Container Images Optimized for Kubernetes_
+_An opinionated collection of container images_
 
 </div>
 
@@ -15,49 +10,150 @@ _A Collection of Container Images Optimized for Kubernetes_
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/mglants/containers?style=for-the-badge)
 ![GitHub forks](https://img.shields.io/github/forks/mglants/containers?style=for-the-badge)
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/mglants/containers/scheduled-release.yaml?style=for-the-badge&label=Scheduled%20Release)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/mglants/containers/release.yaml?style=for-the-badge&label=Release)
 
 </div>
 
----
+Welcome to our container images! If you are looking for a container, start by [browsing the GitHub Packages page for this repository's packages](https://github.com/mglants?tab=packages&repo_name=containers).
 
-## About
+## Mission Statement
 
-This repo contains a collection of containers which are optimized for use in kubernetes, and updated automatically to keep up with upstream versions. Using an image effectively in Kubernetes requires a few ingredients:
+Our goal is to provide [semantically versioned](https://semver.org/), [rootless](https://rootlesscontaine.rs/), and [multi-architecture](https://www.docker.com/blog/multi-arch-build-and-images-the-simple-way/) containers for various applications.
 
-- The filesystem must be able to be immutable
-- Semantic versioning is available to specify exact versions to run
-- The container can be run rootless
-- The container shouldn't require any manual interaction
-- The container should ideally be configurable via environmental variables
+We adhere to the [KISS principle](https://en.wikipedia.org/wiki/KISS_principle), logging to stdout, maintaining [one process per container](https://testdriven.io/tips/59de3279-4a2d-4556-9cd0-b444249ed31e/), avoiding tools like [s6-overlay](https://github.com/just-containers/s6-overlay), and building all images on top of [Alpine](https://hub.docker.com/_/alpine) or [Ubuntu](https://hub.docker.com/_/ubuntu).
 
-## Configuration volume
+## Features
 
-For applications that need to have persistent configuration data the container will leverage a `/data` and a `/config` volume where these are necessary. This is not able to be changed in most cases.
+### Tag Immutability
 
----
+Containers built here do not use immutable tags in the traditional sense, as seen with [linuxserver.io](https://fleet.linuxserver.io/) or [Bitnami](https://bitnami.com/stacks/containers). Instead, we insist on pinning to the `sha256` digest of the image. While this approach is less visually appealing, it ensures functionality and immutability.
 
-## Available Tags
+| Container                                                  | Immutable |
+| ---------------------------------------------------------- | --------- |
+| `ghcr.io/mglants/smartctl-exporter:rolling`                | ❌        |
+| `ghcr.io/mglants/smartctl-exporter:0.14.0`                 | ❌        |
+| `ghcr.io/mglants/smartctl-exporter:rolling@sha256:8053...` | ✅        |
+| `ghcr.io/mglants/smartctl-exporter:0.14.0@sha256:8053...`  | ✅        |
 
-For Semantically Versioned containers (e.g. `v1.2.3`), `major`, `major.minor`, and `major.minor.patch` tags will be generated, for example, ![1](https://img.shields.io/badge/1-blue?style=flat-square) ![1.2](https://img.shields.io/badge/1.2-blue?style=flat-square) and ![1.2.3](https://img.shields.io/badge/1.2.3-blue?style=flat-square). Available Images Below.
+_If pinning an image to the `sha256` digest, tools like [Renovate](https://github.com/renovatebot/renovate) can update containers based on digest or version changes._
 
-### Application Images
+### Rootless
 
-Each Image will be built with a `rolling` tag, along with tags specific to it's version. Available Images Below
+By default the majority of our containers run as a non-root user (`65534:65534`), you are able to change the user/group by updating your configuration files.
 
-Container | Channel | Image
---- | --- | ---
-[cni-plugins](https://github.com/mglants/containers/pkgs/container/cni-plugins) | stable | ghcr.io/mglants/cni-plugins
-[emonoda](https://github.com/mglants/containers/pkgs/container/emonoda) | stable | ghcr.io/mglants/emonoda
-[gammu-telegram](https://github.com/mglants/containers/pkgs/container/gammu-telegram) | stable | ghcr.io/mglants/gammu-telegram
-[google-authentik-sync](https://github.com/mglants/containers/pkgs/container/google-authentik-sync) | stable | ghcr.io/mglants/google-authentik-sync
-[kea-dhcp](https://github.com/mglants/containers/pkgs/container/kea-dhcp) | stable | ghcr.io/mglants/kea-dhcp
-[kea-dhcp-sidecar](https://github.com/mglants/containers/pkgs/container/kea-dhcp-sidecar) | stable | ghcr.io/mglants/kea-dhcp-sidecar
-[kube-vip-watcher](https://github.com/mglants/containers/pkgs/container/kube-vip-watcher) | stable | ghcr.io/mglants/kube-vip-watcher
-[matchbox](https://github.com/mglants/containers/pkgs/container/matchbox) | stable | ghcr.io/mglants/matchbox
-[mktxp](https://github.com/mglants/containers/pkgs/container/mktxp) | stable | ghcr.io/mglants/mktxp
-[rpi-dnsmasq](https://github.com/mglants/containers/pkgs/container/rpi-dnsmasq) | stable | ghcr.io/mglants/rpi-dnsmasq
-[rw-temporary-subscription-app](https://github.com/mglants/containers/pkgs/container/rw-temporary-subscription-app) | stable | ghcr.io/mglants/rw-temporary-subscription-app
-[s4cmd](https://github.com/mglants/containers/pkgs/container/s4cmd) | stable | ghcr.io/mglants/s4cmd
-[smartctl-exporter](https://github.com/mglants/containers/pkgs/container/smartctl-exporter) | stable | ghcr.io/mglants/smartctl-exporter
-[tuned](https://github.com/mglants/containers/pkgs/container/tuned) | stable | ghcr.io/mglants/tuned
+#### Docker Compose
+
+```yaml
+services:
+  smartctl-exporter:
+    image: ghcr.io/mglants/smartctl-exporter:0.14.0@sha256:e08e664b49996fdfb52e80982c7b7d919da09522f3dc18da8e3e94a177fe0180
+    container_name: smartctl-exporter
+    user: 1000:1000 # The data volume permissions must match this user:group
+    read_only: true # May require mounting in additional dirs as tmpfs
+    tmpfs:
+      - /tmp:rw
+    # ...
+```
+
+#### Kubernetes
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smartctl-exporter
+# ...
+spec:
+  # ...
+  template:
+    # ...
+    spec:
+      containers:
+        - name: smartctl-exporter
+          image: ghcr.io/mglants/smartctl-exporter:0.14.0@sha256:e08e664b49996fdfb52e80982c7b7d919da09522f3dc18da8e3e94a177fe0180
+          securityContext: # May require mounting in additional dirs as emptyDir
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      # ...
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000 # (Requires CSI support)
+        fsGroupChangePolicy: OnRootMismatch # (Requires CSI support)
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      # ...
+# ...
+```
+
+### Passing Arguments to Applications
+
+Some applications only allow certain configurations via command-line arguments rather than environment variables. For such cases, refer to the Kubernetes documentation on [defining commands and arguments for a container](https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/). Then, specify the desired arguments as shown below:
+
+```yaml
+args:
+  - --port
+  - "8080"
+```
+
+### Configuration Volume
+
+For applications requiring persistent configuration data, the configuration volume is hardcoded to `/config` within the container. In most cases, this path cannot be changed.
+
+### Verify Image Signature
+
+These container images are signed using the [attest-build-provenance](https://github.com/actions/attest-build-provenance) action.
+
+To verify that the image was built by GitHub CI, use the following command:
+
+```sh
+gh attestation verify --repo mglants/containers oci://ghcr.io/mglants/${APP}:${TAG}
+```
+
+or by using [cosign](https://github.com/sigstore/cosign):
+
+```sh
+cosign verify-attestation --new-bundle-format --type slsaprovenance1 \
+    --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+    --certificate-identity-regexp "^https://github.com/mglants/containers/.github/workflows/app-builder.yaml@refs/heads/main" \
+    ghcr.io/mglants/${APP}:${TAG}
+```
+
+### Image Catalog
+
+Application definitions live under `apps/`, with a `docker-bake.hcl` version pin,
+Dockerfile and Go container tests for each image. The catalog contains 14 existing
+applications and 15 BigBlueButton components. BBB includes full recording and MP4
+export; see [the BBB image guide](apps/bigbluebutton-frontend/README.md).
+
+## Contributing
+
+We encourage the use of official upstream container images whenever possible. However, contributing to this repository might make sense if:
+
+- The upstream application is **actively maintained**.
+- **And** one of the following applies:
+  - no official image exists.
+  - the official image does not support **multi-architecture builds**.
+  - the official image uses tools like **s6-overlay**, **gosu**, or other unconventional initialization mechanisms.
+  - does not tag releases.
+
+## Deprecations
+
+Containers in this repository may be deprecated for the following reasons:
+
+1. The upstream application is **no longer actively maintained**.
+2. An **official upstream container exists** that aligns with this repository's mission statement.
+3. The **maintenance burden** is unsustainable, such as frequent build failures or instability.
+
+**Note**: Deprecated containers will be announced with a release and remain available in the registry for 6 months before removal.
+
+## Credits
+
+The repository framework follows [home-operations/containers](https://github.com/home-operations/containers). It draws inspiration and ideas from the home-ops community, [hotio.dev](https://hotio.dev/), and [linuxserver.io](https://www.linuxserver.io/) contributors.

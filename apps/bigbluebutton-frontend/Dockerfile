@@ -1,0 +1,86 @@
+# syntax=docker/dockerfile:1.7
+# Source-built BigBlueButton frontend; version and target are selected by Bake.
+ARG VERSION
+# renovate: datasource=github-tags depName=bigbluebutton/bbb-playback
+ARG PLAYBACK_VERSION=v5.4.8
+
+FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS bbb-source
+ARG VERSION
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 bzip2 && rm -rf /var/lib/apt/lists/*
+ADD https://codeload.github.com/bigbluebutton/bigbluebutton/tar.gz/refs/tags/v${VERSION} /tmp/bbb.tar
+RUN mkdir -p /sources/bbb && tar --no-same-owner -xf /tmp/bbb.tar --strip-components=1 -C /sources/bbb && rm /tmp/bbb.tar
+
+FROM bbb-source AS sources
+ARG PLAYBACK_VERSION
+ADD https://codeload.github.com/bigbluebutton/bbb-playback/tar.gz/refs/tags/${PLAYBACK_VERSION} /tmp/playback.tar
+RUN mkdir -p /sources/playback && tar --no-same-owner -xf /tmp/playback.tar --strip-components=1 -C /sources/playback && rm /tmp/playback.tar
+
+FROM sources AS staged-nginx
+COPY build/stage-nginx.py /build/stage-nginx.py
+RUN python3 /build/stage-nginx.py
+
+FROM golang:1.27-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build-runtime
+ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
+WORKDIR /source
+COPY runtime/config/ ./
+RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
+    go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
+
+FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS node-builder
+ARG VERSION
+ENV NODE_OPTIONS=--max-old-space-size=6144
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git python3 make g++ pkg-config && rm -rf /var/lib/apt/lists/*
+COPY --from=sources /sources/bbb/ /sources/bbb/
+COPY build/build-node.sh /build/build-node.sh
+COPY --from=sources /sources/playback/ /sources/playback/
+
+FROM node-builder AS build-frontend
+COPY build/patch-client.py /build/patch-client.py
+RUN python3 /build/patch-client.py
+RUN --mount=type=cache,id=bbb-npm-frontend,target=/root/.npm,sharing=locked bash /build/build-node.sh frontend
+
+# Browser source maps are debugging artifacts; keep shipped application assets.
+RUN find /out -type f \( -name "*.map" -o -name "*.map.gz" -o -name "*.map.br" \) -delete
+
+FROM node-builder AS build-playback
+ARG PLAYBACK_VERSION
+# Inline Python content is supplied by the Dockerfile, not the build context.
+# droast ignore=DF077
+COPY <<'PYCODE' /tmp/bbb-build-3.py
+from pathlib import Path
+p = Path('/sources/playback/src/config.js')
+s = p.read_text()
+assert s.count("url: 'HOST'") == 1
+p.write_text(s.replace("url: 'HOST'", "url: '/playback/presentation/2.3'"))
+PYCODE
+RUN python3 /tmp/bbb-build-3.py && rm /tmp/bbb-build-3.py
+# droast ignore=DF077
+COPY <<'PYCODE' /tmp/bbb-build-playback.py
+import os, subprocess
+from pathlib import Path
+version = os.environ['PLAYBACK_VERSION'].removeprefix('v')
+subprocess.run(['npm', 'run', 'build'], check=True, env={**os.environ, 'REACT_APP_BBB_PLAYBACK_BUILD': version})
+Path('build/bbb-playback-version').write_text(version + '\n')
+PYCODE
+RUN --mount=type=cache,id=bbb-npm-playback,target=/root/.npm,sharing=locked \
+    cd /sources/playback && npm ci --no-audit --no-fund \
+    && python3 /tmp/bbb-build-playback.py && rm /tmp/bbb-build-playback.py
+
+# Browser source maps are debugging artifacts; keep shipped application assets.
+RUN find /sources/playback/build -type f \( -name "*.map" -o -name "*.map.gz" -o -name "*.map.br" \) -delete
+
+FROM nginx:1.31-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d AS frontend
+COPY --from=build-frontend /out/client/ /usr/share/bigbluebutton/html5-client/
+COPY --from=build-playback /sources/playback/build/ /var/bigbluebutton/playback/presentation/2.3/
+COPY --from=build-frontend /out/dashboard/ /var/bigbluebutton/learning-dashboard/
+COPY --from=sources /sources/bbb/bigbluebutton-config/assets/ /var/www/bigbluebutton-default/assets/
+RUN mkdir -p /var/cache/nginx && chown -R nginx:nginx /var/cache/nginx
+EXPOSE 8080
+USER root
+COPY --from=build-runtime /out/bbb-runtime /usr/local/bin/bbb-runtime
+COPY --chmod=755 runtime/install-config.sh /usr/share/bbb-container/install-config.sh
+RUN rm /etc/nginx/nginx.conf && /usr/share/bbb-container/install-config.sh frontend
+COPY --from=staged-nginx /out/nginx/ /usr/share/bbb-container/nginx/
+USER nginx
+ENTRYPOINT ["/usr/local/bin/bbb-runtime", "frontend"]
+CMD ["nginx", "-g", "daemon off;"]

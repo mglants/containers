@@ -1,6 +1,6 @@
-import React from 'react';
+import React from "react";
 
-import LanguageSwitch from './LanguageSwitch.jsx';
+import LanguageSwitch from "./LanguageSwitch.jsx";
 
 export default function PageHero({
   eyebrow,
@@ -9,17 +9,13 @@ export default function PageHero({
   onLocaleChange,
   title,
   copy,
-  children
+  children,
 }) {
   return (
     <section className="hero-card">
       <div className="hero-head">
         <p className="eyebrow">{eyebrow}</p>
-        <LanguageSwitch
-          ariaLabel={languageLabel}
-          locale={locale}
-          onLocaleChange={onLocaleChange}
-        />
+        <LanguageSwitch ariaLabel={languageLabel} locale={locale} onLocaleChange={onLocaleChange} />
       </div>
       <h1>{title}</h1>
       <p className="hero-copy">{copy}</p>

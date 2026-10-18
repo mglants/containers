@@ -1,0 +1,33 @@
+--- a/pkg/config/config.go
++++ b/pkg/config/config.go
+@@ -88,6 +88,7 @@
+ }
+ 
+ type Config struct {
++	NoPinWaitForSubscribe bool `yaml:"no_pin_wait_for_subscribe"`
+ 	Redis     *redis.RedisConfig `yaml:"redis"`      // required
+ 	ApiKey    string             `yaml:"api_key"`    // required (env LIVEKIT_API_KEY)
+ 	ApiSecret string             `yaml:"api_secret"` // required (env LIVEKIT_API_SECRET)
+@@ -166,6 +167,7 @@
+ 
+ func NewConfig(confString string) (*Config, error) {
+ 	conf := &Config{
++		NoPinWaitForSubscribe: true,
+ 		ApiKey:      os.Getenv("LIVEKIT_API_KEY"),
+ 		ApiSecret:   os.Getenv("LIVEKIT_API_SECRET"),
+ 		WsUrl:       os.Getenv("LIVEKIT_WS_URL"),
+--- a/pkg/sip/inbound.go
++++ b/pkg/sip/inbound.go
+@@ -1106,8 +1106,10 @@
+ 		c.log().Infow("Waiting for track subscription(s)")
+ 		// For dispatches without pin, we first wait for LK participant to become available,
+ 		// and also for at least one track subscription. In the meantime we keep ringing.
+-		if ok, err := c.waitSubscribe(ctx, disp.RingingTimeout, timeoutStatus); !ok {
+-			return err // already sent a response. Could be success if caller hung up
++		if c.s.conf.NoPinWaitForSubscribe {
++			if ok, err := c.waitSubscribe(ctx, disp.RingingTimeout, timeoutStatus); !ok {
++				return err // already sent a response. Could be success if caller hung up
++			}
+ 		}
+ 		if ok, ackTimeout, err = c.acceptCallAndWaitForMedia(ctx, disp, sdpBody, mconf.MediaTimeout, expectingLateAnswer); !ok {
+ 			return err // already sent a response. Could be success if caller hung up

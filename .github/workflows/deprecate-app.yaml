@@ -1,0 +1,116 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Deprecate App
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        type: string
+        description: App Name
+        required: true
+      reason:
+        type: string
+        description: Deprecation Reason
+        required: true
+      release:
+        type: boolean
+        description: Create Release
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan (${{ inputs.app }})
+    runs-on: ubuntu-26.04
+    outputs:
+      pull-number: ${{ steps.pr.outputs.pull-request-number }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Generate Token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ secrets.BOT_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Validate App Directory
+        env:
+          APP: ${{ inputs.app }}
+        run: |
+          if [[ ! -d "./apps/${APP}" ]]; then
+            echo "::error::App directory './apps/${APP}' does not exist"
+            exit 1
+          fi
+
+      - name: Delete App Directory
+        env:
+          APP: ${{ inputs.app }}
+        run: |
+          rm -rf ./apps/${APP}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        id: pr
+        with:
+          body: |
+            **Reason**: ${{ inputs.reason }}
+          branch: deprecate/${{ inputs.app }}
+          commit-message: "release(${{ inputs.app }})!: deprecate app image"
+          labels: ${{ inputs.release && 'deprecation' || '' }}
+          sign-commits: true
+          signoff: true
+          title: "release(${{ inputs.app }})!: deprecate app image"
+          token: ${{ steps.app-token.outputs.token }}
+
+  merge:
+    if: ${{ inputs.release }}
+    name: Merge (${{ inputs.app }})
+    needs:
+      - plan
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Generate Token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ secrets.BOT_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Merge Pull Request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PULL_NUMBER: ${{ needs.plan.outputs.pull-number }}
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const pull_number = Number(process.env.PULL_NUMBER);
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number,
+            });
+            try {
+              await github.graphql(
+                'mutation($id: ID!) { enqueuePullRequest(input: { pullRequestId: $id }) { clientMutationId } }',
+                { id: pr.node_id },
+              );
+              core.info(`Added #${pull_number} to the merge queue`);
+            } catch (error) {
+              // enqueue is rejected while required checks are still running
+              core.info(`Enqueue failed (${error.message}), enabling auto-merge instead`);
+              await github.graphql(
+                'mutation($id: ID!) { enablePullRequestAutoMerge(input: { pullRequestId: $id }) { clientMutationId } }',
+                { id: pr.node_id },
+              );
+            }

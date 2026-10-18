@@ -3,9 +3,9 @@ import {
   generateUsername,
   getRwUserFromResponse,
   getTomorrowIso,
-  parseJsonResponse
-} from './utils.js';
-import { buildErrorMeta, stringifyForLog } from './logger.js';
+  parseJsonResponse,
+} from "./utils.js";
+import { buildErrorMeta, stringifyForLog } from "./logger.js";
 
 const BYTES_IN_MEGABYTE = 1024 * 1024;
 
@@ -15,42 +15,40 @@ export function createRemnawaveClient({ config, log }) {
       return;
     }
 
-    log('error', 'Missing RW API configuration', {
+    log("error", "Missing RW API configuration", {
       requestId,
       hasRwApiBaseUrl: Boolean(config.rwApiBaseUrl),
-      hasRwApiToken: Boolean(config.rwApiToken)
+      hasRwApiToken: Boolean(config.rwApiToken),
     });
 
-    throw createHttpError('Missing RW API configuration', 500, {
+    throw createHttpError("Missing RW API configuration", 500, {
       clientResponse: {
-        error: 'Missing RW API configuration',
-        details: 'Set RW_API_BASE_URL and RW_API_TOKEN in your environment.'
-      }
+        error: "Missing RW API configuration",
+        details: "Set RW_API_BASE_URL and RW_API_TOKEN in your environment.",
+      },
     });
   }
 
   function buildUsersUrl() {
-    return `${config.rwApiBaseUrl.replace(/\/$/, '')}/api/users`;
+    return `${config.rwApiBaseUrl.replace(/\/$/, "")}/api/users`;
   }
 
   function buildResolveUrl() {
-    return `${config.rwApiBaseUrl.replace(/\/$/, '')}/api/users/resolve`;
+    return `${config.rwApiBaseUrl.replace(/\/$/, "")}/api/users/resolve`;
   }
 
   function buildUsersByTelegramIdUrl(telegramId) {
-    return `${config.rwApiBaseUrl.replace(/\/$/, '')}/api/users/by-telegram-id/${encodeURIComponent(telegramId)}`;
+    return `${config.rwApiBaseUrl.replace(/\/$/, "")}/api/users/by-telegram-id/${encodeURIComponent(telegramId)}`;
   }
 
   function buildTemporaryUserPayload({ username }) {
     const payload = {
       username,
-      description: 'Auto-generated temporary subscription',
-      status: 'ACTIVE',
-      trafficLimitBytes: Math.round(
-        config.tempSubscriptionTrafficLimitMb * BYTES_IN_MEGABYTE
-      ),
-      trafficLimitStrategy: 'NO_RESET',
-      expireAt: getTomorrowIso()
+      description: "Auto-generated temporary subscription",
+      status: "ACTIVE",
+      trafficLimitBytes: Math.round(config.tempSubscriptionTrafficLimitMb * BYTES_IN_MEGABYTE),
+      trafficLimitStrategy: "NO_RESET",
+      expireAt: getTomorrowIso(),
     };
 
     if (config.rwSquadUuid) {
@@ -67,41 +65,41 @@ export function createRemnawaveClient({ config, log }) {
     const payload = buildTemporaryUserPayload({ username });
     const rwUsersUrl = buildUsersUrl();
 
-    log('info', 'Creating temporary subscription', {
+    log("info", "Creating temporary subscription", {
       requestId,
       username,
       rwUsersUrl,
       expireAt: payload.expireAt,
       trafficLimitMb: config.tempSubscriptionTrafficLimitMb,
-      hasSquad: Boolean(config.rwSquadUuid)
+      hasSquad: Boolean(config.rwSquadUuid),
     });
 
     try {
       const response = await fetch(rwUsersUrl, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${config.rwApiToken}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.rwApiToken}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       const responseBody = await parseJsonResponse(response);
 
       if (!response.ok) {
-        log('warn', 'RW API returned non-2xx response', {
+        log("warn", "RW API returned non-2xx response", {
           requestId,
           username,
           rwStatus: response.status,
-          rwResponsePreview: stringifyForLog(responseBody)
+          rwResponsePreview: stringifyForLog(responseBody),
         });
 
-        throw createHttpError('RW API request failed', response.status, {
+        throw createHttpError("RW API request failed", response.status, {
           clientResponse: {
-            error: 'RW API request failed',
+            error: "RW API request failed",
             rwStatus: response.status,
             rwResponse: responseBody,
-            payloadSent: payload
-          }
+            payloadSent: payload,
+          },
         });
       }
 
@@ -114,26 +112,26 @@ export function createRemnawaveClient({ config, log }) {
         rwStatus: response.status,
         rwUser,
         responseBody,
-        subscriptionUrl: rwUser?.subscriptionUrl ?? responseBody?.subscriptionUrl ?? null
+        subscriptionUrl: rwUser?.subscriptionUrl ?? responseBody?.subscriptionUrl ?? null,
       };
     } catch (error) {
       if (error?.httpStatus) {
         throw error;
       }
 
-      log('error', 'RW API fetch failed', {
+      log("error", "RW API fetch failed", {
         requestId,
         username,
         rwUsersUrl,
-        ...buildErrorMeta(error)
+        ...buildErrorMeta(error),
       });
 
-      throw createHttpError('Failed to reach RW API', 502, {
+      throw createHttpError("Failed to reach RW API", 502, {
         clientResponse: {
-          error: 'Failed to reach RW API',
-          details: error instanceof Error ? error.message : 'Unknown error',
-          payloadSent: payload
-        }
+          error: "Failed to reach RW API",
+          details: error instanceof Error ? error.message : "Unknown error",
+          payloadSent: payload,
+        },
       });
     }
   }
@@ -143,26 +141,26 @@ export function createRemnawaveClient({ config, log }) {
 
     const rwResolveUrl = buildResolveUrl();
     const response = await fetch(rwResolveUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.rwApiToken}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.rwApiToken}`,
       },
-      body: JSON.stringify({ username })
+      body: JSON.stringify({ username }),
     });
     const responseBody = await parseJsonResponse(response);
 
     if (!response.ok) {
-      log('warn', 'Failed to resolve RW user by username', {
+      log("warn", "Failed to resolve RW user by username", {
         requestId,
         username,
         rwStatus: response.status,
-        rwResponsePreview: stringifyForLog(responseBody)
+        rwResponsePreview: stringifyForLog(responseBody),
       });
 
       throw createHttpError(`RW resolve failed with status ${response.status}`, response.status, {
         rwStatus: response.status,
-        rwResponse: responseBody
+        rwResponse: responseBody,
       });
     }
 
@@ -173,19 +171,19 @@ export function createRemnawaveClient({ config, log }) {
     assertConfigured(requestId);
 
     const response = await fetch(buildUsersByTelegramIdUrl(telegramId), {
-      method: 'GET',
+      method: "GET",
       headers: {
-        Authorization: `Bearer ${config.rwApiToken}`
-      }
+        Authorization: `Bearer ${config.rwApiToken}`,
+      },
     });
     const responseBody = await parseJsonResponse(response);
 
     if (!response.ok) {
-      log('warn', 'Failed to fetch RW users by Telegram ID', {
+      log("warn", "Failed to fetch RW users by Telegram ID", {
         requestId,
         telegramId,
         rwStatus: response.status,
-        rwResponsePreview: stringifyForLog(responseBody)
+        rwResponsePreview: stringifyForLog(responseBody),
       });
 
       throw createHttpError(
@@ -193,8 +191,8 @@ export function createRemnawaveClient({ config, log }) {
         response.status,
         {
           rwStatus: response.status,
-          rwResponse: responseBody
-        }
+          rwResponse: responseBody,
+        },
       );
     }
 
@@ -206,45 +204,44 @@ export function createRemnawaveClient({ config, log }) {
     assertConfigured(requestId);
 
     const userUuid =
-      rwUserUuid ||
-      (await resolveUserByUsername({ requestId, username: rwUsername }))?.uuid;
+      rwUserUuid || (await resolveUserByUsername({ requestId, username: rwUsername }))?.uuid;
 
     if (!userUuid) {
-      throw createHttpError('Unable to resolve RW user UUID before update', 502);
+      throw createHttpError("Unable to resolve RW user UUID before update", 502);
     }
 
     const response = await fetch(buildUsersUrl(), {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.rwApiToken}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.rwApiToken}`,
       },
       body: JSON.stringify({
         uuid: userUuid,
-        telegramId: telegramId.asNumber
-      })
+        telegramId: telegramId.asNumber,
+      }),
     });
     const responseBody = await parseJsonResponse(response);
 
     if (!response.ok) {
-      log('warn', 'Failed to update RW user with Telegram identity', {
+      log("warn", "Failed to update RW user with Telegram identity", {
         requestId,
         rwUserUuid: userUuid,
         telegramId: telegramId.asString,
         rwStatus: response.status,
-        rwResponsePreview: stringifyForLog(responseBody)
+        rwResponsePreview: stringifyForLog(responseBody),
       });
 
       throw createHttpError(`RW update failed with status ${response.status}`, response.status, {
         rwStatus: response.status,
-        rwResponse: responseBody
+        rwResponse: responseBody,
       });
     }
 
     return {
       rwUser: getRwUserFromResponse(responseBody),
       rwResponse: responseBody,
-      rwUserUuid: userUuid
+      rwUserUuid: userUuid,
     };
   }
 
@@ -252,6 +249,6 @@ export function createRemnawaveClient({ config, log }) {
     createTemporarySubscription,
     getUsersByTelegramId,
     resolveUserByUsername,
-    updateUserWithTelegram
+    updateUserWithTelegram,
   };
 }

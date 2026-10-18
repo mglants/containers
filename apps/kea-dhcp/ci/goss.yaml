@@ -1,9 +1,0 @@
----
-# https://github.com/aelsabbahy/goss/blob/master/docs/manual.md#process
-process:
-  kea-ctrl-agent:
-    running: true
-
-port:
-  tcp:8000:
-    listening: true

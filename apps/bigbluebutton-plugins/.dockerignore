@@ -1,0 +1,9 @@
+# Only production build inputs enter this component context.
+**
+!Dockerfile
+!build/
+!build/**
+!runtime/
+!runtime/**
+**/__pycache__
+**/*.pyc

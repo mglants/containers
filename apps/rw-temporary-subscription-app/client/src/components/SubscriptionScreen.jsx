@@ -1,7 +1,7 @@
-import React from 'react';
+import React from "react";
 
-import PageHero from './PageHero.jsx';
-import SubscriptionResultPanel from './SubscriptionResultPanel.jsx';
+import PageHero from "./PageHero.jsx";
+import SubscriptionResultPanel from "./SubscriptionResultPanel.jsx";
 
 export default function SubscriptionScreen({
   locale,
@@ -15,7 +15,7 @@ export default function SubscriptionScreen({
   copyState,
   onCopySubscriptionUrl,
   activationBotUrl,
-  t
+  t,
 }) {
   return (
     <main className="page-shell">

@@ -3,16 +3,16 @@ export function log(level, message, meta = {}) {
     timestamp: new Date().toISOString(),
     level,
     message,
-    ...meta
+    ...meta,
   };
   const line = JSON.stringify(entry);
 
-  if (level === 'error') {
+  if (level === "error") {
     console.error(line);
     return;
   }
 
-  if (level === 'warn') {
+  if (level === "warn") {
     console.warn(line);
     return;
   }
@@ -28,7 +28,7 @@ export function buildErrorMeta(error) {
   return {
     errorName: error.name,
     errorMessage: error.message,
-    errorStack: error.stack
+    errorStack: error.stack,
   };
 }
 
@@ -38,7 +38,7 @@ export function stringifyForLog(value, maxLength = 1500) {
   }
 
   try {
-    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+    const serialized = typeof value === "string" ? value : JSON.stringify(value);
     if (serialized.length <= maxLength) {
       return serialized;
     }
