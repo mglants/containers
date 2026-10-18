@@ -5,6 +5,14 @@ import os
 from pathlib import Path
 import re
 
+# Keep the bundled UI separate from reports on the shared media mount.
+DASHBOARD_REPORTS = r'''location ~ "^/learning-analytics-dashboard/(?<ld_meeting>[0-9a-f]{40}-[0-9]+)/(?<ld_token>[A-Za-z0-9_-]+)/(?<ld_file>.+)$" {
+    alias /presentations/learning-dashboard/$ld_meeting/$ld_token/$ld_file;
+    autoindex off;
+}
+
+'''
+
 # Expected replacement counts force review when an upstream route changes.
 ROUTES = {'bbb-web.nginx': ('bigbluebutton-web/bbb-web.nginx',
                    [('http://127.0.0.1:8090', 'http://bbb-web', 10),
@@ -26,7 +34,9 @@ ROUTES = {'bbb-web.nginx': ('bigbluebutton-web/bbb-web.nginx',
                       [('http://127.0.0.1:3008', 'http://bbb-signaling', 1)]),
  'livekit.nginx': ('build/packages-template/bbb-livekit/livekit.nginx',
                    [('http://127.0.0.1:7880', 'http://bbb-livekit', 1)]),
- 'learning-dashboard.nginx': ('bbb-learning-dashboard/learning-dashboard.nginx', [])}
+ 'learning-dashboard.nginx': ('bbb-learning-dashboard/learning-dashboard.nginx',
+                             [('location /learning-analytics-dashboard/ {',
+                               DASHBOARD_REPORTS + 'location /learning-analytics-dashboard/ {', 1)])}
 
 
 def stage(source, output, version):
