@@ -1,4 +1,4 @@
-# Only production build inputs enter the default context.
+# Only production build inputs enter this component context.
 **
 !Dockerfile
 !build/

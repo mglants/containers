@@ -26,13 +26,6 @@ PY
     cd ../bbb-common-web
     sbt publish publishLocal
     ;;
-  apps)
-    cd akka-bbb-apps
-    sbt universal:packageBin
-    mkdir -p /out
-    unzip -q target/universal/bbb-apps-akka-*.zip -d /tmp/bbb-apps
-    cp -a /tmp/bbb-apps/*/. /out/
-    ;;
   web)
     cd bigbluebutton-web
     ./gradlew --no-daemon resolveDeps assemble

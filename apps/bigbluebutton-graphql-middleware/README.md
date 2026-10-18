@@ -1,8 +1,11 @@
 # BigBlueButton 4.0 images
 
-Source-built BigBlueButton components for Linux amd64. Each image has a Bake
-version pin and Go container test in `apps/bigbluebutton-<component>/`. The Dockerfile, build helpers and environment adapter live in each app context. Images run as
-non-root users and configure themselves from environment variables.
+This app builds the BigBlueButton **graphql-middleware** component for Linux amd64. Its
+Dockerfile includes only this component's dependency stages and source downloads.
+`build/` contains its build scripts and patches, when needed; `runtime/` contains
+its configuration adapter and required wrappers. The common Go configuration
+adapter is kept in every app context so upstream's independent builds work
+without shared repository paths or prebuilt custom base images.
 
 ## Images
 

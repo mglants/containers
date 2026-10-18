@@ -33,16 +33,5 @@ PY
     unzip -q target/universal/bbb-apps-akka-*.zip -d /tmp/bbb-apps
     cp -a /tmp/bbb-apps/*/. /out/
     ;;
-  web)
-    cd bigbluebutton-web
-    ./gradlew --no-daemon resolveDeps assemble
-    mkdir -p /out/web /out/prescheck/lib
-    unzip -q build/libs/bigbluebutton-0.10.0.war -d /out/web
-    cd pres-checker
-    ../gradlew --no-daemon resolveDeps jar
-    cp -a lib/. /out/prescheck/lib/
-    cp build/libs/bbb-pres-check-*.jar /out/prescheck/lib/
-    cp run.sh /out/prescheck/prescheck.sh
-    ;;
   *) echo "Unknown JVM build: $1" >&2; exit 2 ;;
 esac
