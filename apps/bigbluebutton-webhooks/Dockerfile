@@ -11,7 +11,7 @@ COPY runtime/config/ ./
 RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
     go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
 
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS addon-sources
+FROM ubuntu:26.04@sha256:c098726dd9b9733f3e885f8de0ef375206a311b0a317eadc40d347b1115fb944 AS addon-sources
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 bzip2 && rm -rf /var/lib/apt/lists/*
 ARG WEBHOOKS_VERSION
 ADD https://codeload.github.com/bigbluebutton/bbb-webhooks/tar.gz/refs/tags/${WEBHOOKS_VERSION} /tmp/webhooks.tar
