@@ -1,8 +1,8 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 export function timingSafeEqual(a, b) {
-  const left = Buffer.from(a, 'utf8');
-  const right = Buffer.from(b, 'utf8');
+  const left = Buffer.from(a, "utf8");
+  const right = Buffer.from(b, "utf8");
 
   if (left.length !== right.length) {
     return false;
@@ -18,18 +18,18 @@ export function buildTelegramBotUrl(botUsername, startParam) {
 
   const url = new URL(`https://t.me/${botUsername}`);
   if (startParam) {
-    url.searchParams.set('start', startParam);
+    url.searchParams.set("start", startParam);
   }
 
   return url.toString();
 }
 
 export function generateTempSubscriptionId() {
-  return crypto.randomBytes(18).toString('base64url');
+  return crypto.randomBytes(18).toString("base64url");
 }
 
 export function parseTelegramId(rawValue) {
-  const telegramId = String(rawValue ?? '').trim();
+  const telegramId = String(rawValue ?? "").trim();
 
   if (!/^\d{5,20}$/.test(telegramId)) {
     return null;
@@ -42,7 +42,7 @@ export function parseTelegramId(rawValue) {
 
   return {
     asNumber: numericTelegramId,
-    asString: telegramId
+    asString: telegramId,
   };
 }
 
@@ -57,15 +57,15 @@ export async function parseJsonResponse(response) {
 }
 
 export function getRwUserFromResponse(responseBody) {
-  if (!responseBody || typeof responseBody !== 'object') {
+  if (!responseBody || typeof responseBody !== "object") {
     return null;
   }
 
-  if (responseBody.response && typeof responseBody.response === 'object') {
+  if (responseBody.response && typeof responseBody.response === "object") {
     return responseBody.response;
   }
 
-  if (responseBody.user && typeof responseBody.user === 'object') {
+  if (responseBody.user && typeof responseBody.user === "object") {
     return responseBody.user;
   }
 
@@ -79,15 +79,17 @@ export function createHttpError(message, httpStatus, properties = {}) {
   return error;
 }
 
-export function normalizeLocale(rawLocale, fallback = 'en') {
-  const locale = String(rawLocale ?? '').trim().toLowerCase();
+export function normalizeLocale(rawLocale, fallback = "en") {
+  const locale = String(rawLocale ?? "")
+    .trim()
+    .toLowerCase();
 
-  if (locale.startsWith('ru')) {
-    return 'ru';
+  if (locale.startsWith("ru")) {
+    return "ru";
   }
 
-  if (locale.startsWith('en')) {
-    return 'en';
+  if (locale.startsWith("en")) {
+    return "en";
   }
 
   return fallback;

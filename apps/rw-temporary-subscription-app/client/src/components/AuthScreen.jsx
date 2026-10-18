@@ -1,6 +1,6 @@
-import React from 'react';
+import React from "react";
 
-import PageHero from './PageHero.jsx';
+import PageHero from "./PageHero.jsx";
 
 export default function AuthScreen({
   locale,
@@ -10,7 +10,7 @@ export default function AuthScreen({
   onAuthPasswordChange,
   authError,
   onAuthSubmit,
-  t
+  t,
 }) {
   return (
     <main className="page-shell">
@@ -20,10 +20,10 @@ export default function AuthScreen({
         locale={locale}
         onLocaleChange={onLocaleChange}
         title={t.authTitle}
-        copy={authState === 'checking' ? t.authChecking : t.authDescription}
+        copy={authState === "checking" ? t.authChecking : t.authDescription}
       />
 
-      {authState === 'required' ? (
+      {authState === "required" ? (
         <section className="form-card">
           <form onSubmit={onAuthSubmit} className="subscription-form">
             <label>

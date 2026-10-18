@@ -1,64 +1,60 @@
-import { buildErrorMeta, stringifyForLog } from './logger.js';
-import { normalizeLocale, parseJsonResponse, sleep } from './utils.js';
+import { buildErrorMeta, stringifyForLog } from "./logger.js";
+import { normalizeLocale, parseJsonResponse, sleep } from "./utils.js";
 
 const TELEGRAM_TEXTS = {
   en: {
     bareStartPrompt:
-      'Open the personal Telegram link from the temporary subscription page so I can identify your subscription.',
-    alreadyLinked:
-      'This temporary subscription is already linked to your Telegram account.',
-    linked: 'Temporary subscription linked to your Telegram account.',
-    usernameLabel: 'Remnawave username',
-    continueRegistration: 'Continue registration here',
+      "Open the personal Telegram link from the temporary subscription page so I can identify your subscription.",
+    alreadyLinked: "This temporary subscription is already linked to your Telegram account.",
+    linked: "Temporary subscription linked to your Telegram account.",
+    usernameLabel: "Remnawave username",
+    continueRegistration: "Continue registration here",
     registrationMissing:
-      'Registration bot link is not configured yet. Ask the administrator to set REGISTRATION_BOT_URL.',
+      "Registration bot link is not configured yet. Ask the administrator to set REGISTRATION_BOT_URL.",
     notFound:
-      'Temporary subscription was not found or already expired. Open the website and create a new one.',
+      "Temporary subscription was not found or already expired. Open the website and create a new one.",
     existingTelegram:
-      'A Remnawave user with this Telegram account already exists. Use your existing account or contact the administrator.',
+      "A Remnawave user with this Telegram account already exists. Use your existing account or contact the administrator.",
     linkedDifferent:
-      'This temporary subscription is already linked to a different Telegram account.',
+      "This temporary subscription is already linked to a different Telegram account.",
     genericError:
-      'Failed to finish the handoff. Please try again later or contact the administrator.'
+      "Failed to finish the handoff. Please try again later or contact the administrator.",
   },
   ru: {
     bareStartPrompt:
-      'Откройте персональную ссылку Telegram со страницы временной подписки, чтобы я смог определить вашу подписку.',
-    alreadyLinked:
-      'Эта временная подписка уже привязана к вашему Telegram-аккаунту.',
-    linked: 'Временная подписка привязана к вашему Telegram-аккаунту.',
-    usernameLabel: 'Имя пользователя Remnawave',
-    continueRegistration: 'Продолжить регистрацию здесь',
+      "Откройте персональную ссылку Telegram со страницы временной подписки, чтобы я смог определить вашу подписку.",
+    alreadyLinked: "Эта временная подписка уже привязана к вашему Telegram-аккаунту.",
+    linked: "Временная подписка привязана к вашему Telegram-аккаунту.",
+    usernameLabel: "Имя пользователя Remnawave",
+    continueRegistration: "Продолжить регистрацию здесь",
     registrationMissing:
-      'Ссылка на регистрационного бота пока не настроена. Попросите администратора указать REGISTRATION_BOT_URL.',
-    notFound:
-      'Временная подписка не найдена или уже истекла. Откройте сайт и создайте новую.',
+      "Ссылка на регистрационного бота пока не настроена. Попросите администратора указать REGISTRATION_BOT_URL.",
+    notFound: "Временная подписка не найдена или уже истекла. Откройте сайт и создайте новую.",
     existingTelegram:
-      'В Remnawave уже есть пользователь с этим Telegram-аккаунтом. Используйте существующий аккаунт или обратитесь к администратору.',
-    linkedDifferent:
-      'Эта временная подписка уже привязана к другому Telegram-аккаунту.',
+      "В Remnawave уже есть пользователь с этим Telegram-аккаунтом. Используйте существующий аккаунт или обратитесь к администратору.",
+    linkedDifferent: "Эта временная подписка уже привязана к другому Telegram-аккаунту.",
     genericError:
-      'Не удалось завершить привязку. Попробуйте позже или обратитесь к администратору.'
-  }
+      "Не удалось завершить привязку. Попробуйте позже или обратитесь к администратору.",
+  },
 };
 
 export function createTelegramBot({
   config,
   log,
   linkTemporarySubscriptionToTelegram,
-  getTempSubscriptionRecord
+  getTempSubscriptionRecord,
 }) {
   async function callTelegramApi(method, payload = {}) {
     if (!config.telegramBotApiBaseUrl) {
-      throw new Error('TELEGRAM_BOT_TOKEN is not configured');
+      throw new Error("TELEGRAM_BOT_TOKEN is not configured");
     }
 
     const response = await fetch(`${config.telegramBotApiBaseUrl}/${method}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
     const responseBody = await parseJsonResponse(response);
 
@@ -73,7 +69,7 @@ export function createTelegramBot({
   }
 
   function extractTelegramStartParam(text) {
-    if (typeof text !== 'string') {
+    if (typeof text !== "string") {
       return null;
     }
 
@@ -82,17 +78,14 @@ export function createTelegramBot({
   }
 
   function resolveReplyLocale(telegramLanguageCode, storedLocale) {
-    return (
-      normalizeLocale(telegramLanguageCode, null) ||
-      normalizeLocale(storedLocale, 'en')
-    );
+    return normalizeLocale(telegramLanguageCode, null) || normalizeLocale(storedLocale, "en");
   }
 
   function buildTelegramStartReply(result, locale) {
     const t = TELEGRAM_TEXTS[locale] || TELEGRAM_TEXTS.en;
     const lines = [];
 
-    if (result.status === 'already-linked') {
+    if (result.status === "already-linked") {
       lines.push(t.alreadyLinked);
     } else {
       lines.push(t.linked);
@@ -108,7 +101,7 @@ export function createTelegramBot({
       lines.push(t.registrationMissing);
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   async function processTelegramMessage(update) {
@@ -117,7 +110,7 @@ export function createTelegramBot({
     const fromId = message?.from?.id;
     const text = message?.text;
 
-    if (!chatId || !fromId || typeof text !== 'string') {
+    if (!chatId || !fromId || typeof text !== "string") {
       return;
     }
 
@@ -127,36 +120,32 @@ export function createTelegramBot({
       const replyLocale = resolveReplyLocale(message?.from?.language_code);
 
       if (/^\/start(?:@\w+)?$/i.test(text.trim())) {
-        await callTelegramApi('sendMessage', {
+        await callTelegramApi("sendMessage", {
           chat_id: chatId,
-          text: (TELEGRAM_TEXTS[replyLocale] || TELEGRAM_TEXTS.en).bareStartPrompt
+          text: (TELEGRAM_TEXTS[replyLocale] || TELEGRAM_TEXTS.en).bareStartPrompt,
         });
       }
       return;
     }
 
     const requestId = `telegram-update-${update.update_id ?? Date.now()}`;
-    const storedPreferredLocale =
-      getTempSubscriptionRecord?.(startParam)?.preferredLocale || null;
-    const replyLocale = resolveReplyLocale(
-      message?.from?.language_code,
-      storedPreferredLocale
-    );
+    const storedPreferredLocale = getTempSubscriptionRecord?.(startParam)?.preferredLocale || null;
+    const replyLocale = resolveReplyLocale(message?.from?.language_code, storedPreferredLocale);
     const t = TELEGRAM_TEXTS[replyLocale] || TELEGRAM_TEXTS.en;
 
     try {
       const result = await linkTemporarySubscriptionToTelegram({
         requestId,
         tempSubscriptionId: startParam,
-        telegramId: String(fromId)
+        telegramId: String(fromId),
       });
 
-      await callTelegramApi('sendMessage', {
+      await callTelegramApi("sendMessage", {
         chat_id: chatId,
-        text: buildTelegramStartReply(result, replyLocale)
+        text: buildTelegramStartReply(result, replyLocale),
       });
     } catch (error) {
-      log('error', 'Failed to process Telegram /start handoff', {
+      log("error", "Failed to process Telegram /start handoff", {
         requestId,
         startParam,
         chatId,
@@ -164,7 +153,7 @@ export function createTelegramBot({
         ...buildErrorMeta(error),
         telegramResponsePreview: stringifyForLog(error?.telegramResponse),
         rwStatus: error?.rwStatus,
-        rwResponsePreview: stringifyForLog(error?.rwResponse)
+        rwResponsePreview: stringifyForLog(error?.rwResponse),
       });
 
       const messageText =
@@ -177,17 +166,17 @@ export function createTelegramBot({
               : t.genericError;
 
       try {
-        await callTelegramApi('sendMessage', {
+        await callTelegramApi("sendMessage", {
           chat_id: chatId,
-          text: messageText
+          text: messageText,
         });
       } catch (sendError) {
-        log('error', 'Failed to send Telegram error reply', {
+        log("error", "Failed to send Telegram error reply", {
           requestId,
           chatId,
           telegramUserId: String(fromId),
           ...buildErrorMeta(sendError),
-          telegramResponsePreview: stringifyForLog(sendError?.telegramResponse)
+          telegramResponsePreview: stringifyForLog(sendError?.telegramResponse),
         });
       }
     }
@@ -195,9 +184,9 @@ export function createTelegramBot({
 
   function startPolling() {
     if (!config.telegramBotToken || !config.telegramBotUsername) {
-      log('info', 'Telegram bot polling is disabled', {
+      log("info", "Telegram bot polling is disabled", {
         hasTelegramBotToken: Boolean(config.telegramBotToken),
-        hasTelegramBotUsername: Boolean(config.telegramBotUsername)
+        hasTelegramBotUsername: Boolean(config.telegramBotUsername),
       });
       return;
     }
@@ -206,10 +195,10 @@ export function createTelegramBot({
 
     async function poll() {
       try {
-        const updates = await callTelegramApi('getUpdates', {
+        const updates = await callTelegramApi("getUpdates", {
           offset,
           timeout: config.telegramBotPollTimeoutSeconds,
-          allowed_updates: ['message']
+          allowed_updates: ["message"],
         });
 
         for (const update of updates) {
@@ -217,9 +206,9 @@ export function createTelegramBot({
           await processTelegramMessage(update);
         }
       } catch (error) {
-        log('error', 'Telegram bot polling failed', {
+        log("error", "Telegram bot polling failed", {
           ...buildErrorMeta(error),
-          telegramResponsePreview: stringifyForLog(error?.telegramResponse)
+          telegramResponsePreview: stringifyForLog(error?.telegramResponse),
         });
         await sleep(3000);
       }
@@ -227,23 +216,23 @@ export function createTelegramBot({
       setImmediate(poll);
     }
 
-    callTelegramApi('deleteWebhook', { drop_pending_updates: false })
+    callTelegramApi("deleteWebhook", { drop_pending_updates: false })
       .catch((error) => {
-        log('warn', 'Failed to delete Telegram webhook before polling', {
+        log("warn", "Failed to delete Telegram webhook before polling", {
           ...buildErrorMeta(error),
-          telegramResponsePreview: stringifyForLog(error?.telegramResponse)
+          telegramResponsePreview: stringifyForLog(error?.telegramResponse),
         });
       })
       .finally(() => {
-        log('info', 'Starting Telegram bot polling', {
+        log("info", "Starting Telegram bot polling", {
           telegramBotUsername: config.telegramBotUsername,
-          pollTimeoutSeconds: config.telegramBotPollTimeoutSeconds
+          pollTimeoutSeconds: config.telegramBotPollTimeoutSeconds,
         });
         poll();
       });
   }
 
   return {
-    startPolling
+    startPolling,
   };
 }

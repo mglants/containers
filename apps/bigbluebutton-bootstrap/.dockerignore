@@ -1,0 +1,9 @@
+# Only production build inputs enter the default context.
+**
+!Dockerfile
+!build/
+!build/**
+!runtime/
+!runtime/**
+**/__pycache__
+**/*.pyc

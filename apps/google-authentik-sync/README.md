@@ -88,19 +88,19 @@ against your deployed Authentik version with a test user before production use.
 
 Runtime inputs:
 
-| Variable | Meaning |
-| --- | --- |
-| `GOOGLE_CUSTOMER_ID` | Explicit Workspace customer ID |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Mounted service-account JSON filename |
-| `AUTHENTIK_URL` | Required Authentik HTTPS origin, e.g. `https://authentik.example.com`; no application default |
-| `AUTHENTIK_TOKEN` | Dedicated API token, injected from the Secret via `secretKeyRef` |
-| `AUTHENTIK_USER_TYPE` | New-account type: `internal` (default) or `external` |
-| `AUTHENTIK_USER_PATH` | Folder for new accounts; default `goauthentik.io/sources/google`, e.g. `employees/google` |
-| `EXCLUDED_USERS` | Comma-separated protected usernames or Authentik PKs |
-| `EXCLUDED_GOOGLE_USERS` | Comma-separated Google primary emails or immutable IDs; empty by default |
-| `CREATE_DISABLED_USERS` | `false` (default) skips new suspended/archived users; `true` creates them inactive |
-| `USERNAME_FORMAT` | `email` (default) or `local_part`; only affects newly created usernames |
-| `USERNAME_COLLISION_POLICY` | `error` (default) or `email`; email fallback applies to new local-part usernames |
+| Variable                         | Meaning                                                                                       |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| `GOOGLE_CUSTOMER_ID`             | Explicit Workspace customer ID                                                                |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Mounted service-account JSON filename                                                         |
+| `AUTHENTIK_URL`                  | Required Authentik HTTPS origin, e.g. `https://authentik.example.com`; no application default |
+| `AUTHENTIK_TOKEN`                | Dedicated API token, injected from the Secret via `secretKeyRef`                              |
+| `AUTHENTIK_USER_TYPE`            | New-account type: `internal` (default) or `external`                                          |
+| `AUTHENTIK_USER_PATH`            | Folder for new accounts; default `goauthentik.io/sources/google`, e.g. `employees/google`     |
+| `EXCLUDED_USERS`                 | Comma-separated protected usernames or Authentik PKs                                          |
+| `EXCLUDED_GOOGLE_USERS`          | Comma-separated Google primary emails or immutable IDs; empty by default                      |
+| `CREATE_DISABLED_USERS`          | `false` (default) skips new suspended/archived users; `true` creates them inactive            |
+| `USERNAME_FORMAT`                | `email` (default) or `local_part`; only affects newly created usernames                       |
+| `USERNAME_COLLISION_POLICY`      | `error` (default) or `email`; email fallback applies to new local-part usernames              |
 
 The Google scope is solely
 `https://www.googleapis.com/auth/admin.directory.user.readonly`.

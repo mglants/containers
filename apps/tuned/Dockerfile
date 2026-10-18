@@ -8,6 +8,8 @@ ARG TARGETARCH
 LABEL xyz.glants.image.target_platform=$TARGETPLATFORM
 LABEL xyz.glants.image.target_architecture=$TARGETARCH
 LABEL xyz.glants.image.target_os=$TARGETOS
+# Required to manage host kernel tuning.
+# droast ignore=DF002
 USER root
 RUN apk add tuned --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/
 COPY --chown=root:root ./tuned-main.conf /etc/tuned/tuned-main.conf

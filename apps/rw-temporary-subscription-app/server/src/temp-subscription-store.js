@@ -1,7 +1,7 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-import { buildErrorMeta } from './logger.js';
+import { buildErrorMeta } from "./logger.js";
 
 export function createTempSubscriptionStore({ filePath, retentionMs, log }) {
   function ensureStore() {
@@ -15,9 +15,9 @@ export function createTempSubscriptionStore({ filePath, retentionMs, log }) {
 
   function isStaleRecord(record) {
     const now = Date.now();
-    const expireAtMs = Date.parse(record?.expireAt ?? '');
-    const linkedAtMs = Date.parse(record?.linkedAt ?? '');
-    const createdAtMs = Date.parse(record?.createdAt ?? '');
+    const expireAtMs = Date.parse(record?.expireAt ?? "");
+    const linkedAtMs = Date.parse(record?.linkedAt ?? "");
+    const createdAtMs = Date.parse(record?.createdAt ?? "");
 
     if (Number.isFinite(expireAtMs) && expireAtMs + retentionMs < now) {
       return true;
@@ -43,9 +43,9 @@ export function createTempSubscriptionStore({ filePath, retentionMs, log }) {
     ensureStore();
 
     try {
-      const raw = fs.readFileSync(filePath, 'utf8');
+      const raw = fs.readFileSync(filePath, "utf8");
       const parsed = raw ? JSON.parse(raw) : {};
-      const records = parsed?.records && typeof parsed.records === 'object' ? parsed.records : {};
+      const records = parsed?.records && typeof parsed.records === "object" ? parsed.records : {};
       let hasChanges = false;
 
       for (const [key, value] of Object.entries(records)) {
@@ -61,9 +61,9 @@ export function createTempSubscriptionStore({ filePath, retentionMs, log }) {
 
       return { records };
     } catch (error) {
-      log('warn', 'Failed to read temp subscription store, recreating it', {
+      log("warn", "Failed to read temp subscription store, recreating it", {
         tempStorePath: filePath,
-        ...buildErrorMeta(error)
+        ...buildErrorMeta(error),
       });
 
       const nextStore = { records: {} };
@@ -101,6 +101,6 @@ export function createTempSubscriptionStore({ filePath, retentionMs, log }) {
   return {
     set,
     get,
-    update
+    update,
   };
 }

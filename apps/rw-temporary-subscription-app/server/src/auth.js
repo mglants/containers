@@ -1,6 +1,6 @@
-import express from 'express';
+import express from "express";
 
-import { timingSafeEqual } from './utils.js';
+import { timingSafeEqual } from "./utils.js";
 
 export function createAuthModule({ config }) {
   function parseCookies(cookieHeader) {
@@ -8,8 +8,8 @@ export function createAuthModule({ config }) {
       return {};
     }
 
-    return cookieHeader.split(';').reduce((acc, part) => {
-      const separatorIndex = part.indexOf('=');
+    return cookieHeader.split(";").reduce((acc, part) => {
+      const separatorIndex = part.indexOf("=");
       if (separatorIndex < 0) {
         return acc;
       }
@@ -32,7 +32,7 @@ export function createAuthModule({ config }) {
     return timingSafeEqual(cookieValue, config.appAuthCookieValue);
   }
 
-  function renderAuthPage(errorMessage = '') {
+  function renderAuthPage(errorMessage = "") {
     return `<!doctype html>
 <html lang="en">
   <head>
@@ -56,7 +56,7 @@ export function createAuthModule({ config }) {
       <form class="card" method="post" action="/auth/login">
         <h1>Enter Password</h1>
         <p>Access to this page is protected by a password.</p>
-        ${errorMessage ? `<p class="error">${errorMessage}</p>` : ''}
+        ${errorMessage ? `<p class="error">${errorMessage}</p>` : ""}
         <label>
           <span>Password</span>
           <input type="password" name="password" required autocomplete="current-password" />
@@ -72,24 +72,24 @@ export function createAuthModule({ config }) {
     const parts = [
       `${config.appAuthCookieName}=${config.appAuthCookieValue}`,
       `Max-Age=${config.appAuthCookieMaxAgeSeconds}`,
-      'Path=/',
-      'HttpOnly',
-      `SameSite=${config.appAuthCookieSameSite}`
+      "Path=/",
+      "HttpOnly",
+      `SameSite=${config.appAuthCookieSameSite}`,
     ];
 
     if (config.appAuthCookieSecure) {
-      parts.push('Secure');
+      parts.push("Secure");
     }
 
-    return parts.join('; ');
+    return parts.join("; ");
   }
 
   function requirePageAuth(req, res, next) {
     if (
       !config.appAuthEnabled ||
-      req.path === '/api/health' ||
-      req.method === 'OPTIONS' ||
-      req.path.startsWith('/auth/')
+      req.path === "/api/health" ||
+      req.method === "OPTIONS" ||
+      req.path.startsWith("/auth/")
     ) {
       return next();
     }
@@ -98,69 +98,69 @@ export function createAuthModule({ config }) {
       return next();
     }
 
-    if (req.path.startsWith('/api/')) {
-      return res.status(401).json({ error: 'Authentication required' });
+    if (req.path.startsWith("/api/")) {
+      return res.status(401).json({ error: "Authentication required" });
     }
 
-    return res.redirect('/auth/login');
+    return res.redirect("/auth/login");
   }
 
   const authRouter = express.Router();
 
-  authRouter.get('/login', (req, res) => {
+  authRouter.get("/login", (req, res) => {
     if (!config.appAuthEnabled) {
-      return res.redirect('/');
+      return res.redirect("/");
     }
 
     if (hasValidAuthCookie(req)) {
-      return res.redirect('/');
+      return res.redirect("/");
     }
 
-    return res.status(200).type('html').send(renderAuthPage());
+    return res.status(200).type("html").send(renderAuthPage());
   });
 
-  authRouter.get('/status', (req, res) => {
+  authRouter.get("/status", (req, res) => {
     if (!config.appAuthEnabled) {
       return res.json({ authenticated: true, authEnabled: false });
     }
 
     return res.json({
       authenticated: hasValidAuthCookie(req),
-      authEnabled: true
+      authEnabled: true,
     });
   });
 
-  authRouter.post('/session', (req, res) => {
+  authRouter.post("/session", (req, res) => {
     if (!config.appAuthEnabled) {
       return res.status(200).json({ authenticated: true });
     }
 
-    const password = String(req.body?.password ?? '');
+    const password = String(req.body?.password ?? "");
 
     if (!timingSafeEqual(password, config.appAuthPassword)) {
-      return res.status(401).json({ error: 'Invalid password' });
+      return res.status(401).json({ error: "Invalid password" });
     }
 
-    res.setHeader('Set-Cookie', buildAuthCookie());
+    res.setHeader("Set-Cookie", buildAuthCookie());
     return res.status(200).json({ authenticated: true });
   });
 
-  authRouter.post('/login', (req, res) => {
+  authRouter.post("/login", (req, res) => {
     if (!config.appAuthEnabled) {
-      return res.redirect('/');
+      return res.redirect("/");
     }
 
-    const password = String(req.body?.password ?? '');
+    const password = String(req.body?.password ?? "");
     if (timingSafeEqual(password, config.appAuthPassword)) {
-      res.setHeader('Set-Cookie', buildAuthCookie());
-      return res.redirect('/');
+      res.setHeader("Set-Cookie", buildAuthCookie());
+      return res.redirect("/");
     }
 
-    return res.status(401).type('html').send(renderAuthPage('Invalid password.'));
+    return res.status(401).type("html").send(renderAuthPage("Invalid password."));
   });
 
   return {
     authRouter,
-    requirePageAuth
+    requirePageAuth,
   };
 }

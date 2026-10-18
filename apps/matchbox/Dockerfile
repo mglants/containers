@@ -3,7 +3,7 @@ FROM docker.io/golang:1.24.1 AS build
 ARG VERSION
 
 RUN \
-    apt-get update && apt-get install git \
+    apt-get update && apt-get install -y git \
     && git clone --branch "v${VERSION}" "https://github.com/poseidon/matchbox.git" src \
     && apt-get clean
 RUN cd src && make build

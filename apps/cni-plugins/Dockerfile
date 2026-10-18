@@ -8,6 +8,8 @@ ARG TARGETARCH
 LABEL xyz.glants.image.target_platform=$TARGETPLATFORM
 LABEL xyz.glants.image.target_architecture=$TARGETARCH
 LABEL xyz.glants.image.target_os=$TARGETOS
+# Required to manage host CNI binaries.
+# droast ignore=DF002
 USER root
 ADD https://github.com/containernetworking/plugins/releases/download/v${VERSION}/cni-plugins-linux-${TARGETARCH}-v${VERSION}.tgz /
 RUN mkdir /plugins && \
