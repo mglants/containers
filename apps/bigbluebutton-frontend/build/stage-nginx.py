@@ -36,7 +36,9 @@ ROUTES = {'bbb-web.nginx': ('bigbluebutton-web/bbb-web.nginx',
                    [('http://127.0.0.1:7880', 'http://bbb-livekit', 1)]),
  'learning-dashboard.nginx': ('bbb-learning-dashboard/learning-dashboard.nginx',
                              [('location /learning-analytics-dashboard/ {',
-                               DASHBOARD_REPORTS + 'location /learning-analytics-dashboard/ {', 1)])}
+                               DASHBOARD_REPORTS + 'location /learning-analytics-dashboard/ {', 1)]),
+ 'notes-playback.nginx': ('record-and-playback/notes/scripts/notes-playback.nginx',
+                          [('/var/bigbluebutton/published', '/presentations/published', 1)])}
 
 
 def stage(source, output, version):

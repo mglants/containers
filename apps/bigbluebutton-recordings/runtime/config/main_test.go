@@ -126,6 +126,23 @@ func TestMergePreservesNestedDefaults(t *testing.T) {
 		t.Fatal("nested default lost")
 	}
 }
+func TestNotesRecordingWorkflow(t *testing.T) {
+	isolated(t)
+	t.Setenv("RECORDING_FORMATS", "presentation,video,notes")
+	var config struct {
+		Steps map[string]json.RawMessage `json:"steps"`
+	}
+	if err := json.Unmarshal(render("recordings")["recording.json"], &config); err != nil {
+		t.Fatal(err)
+	}
+	var formats []string
+	if err := json.Unmarshal(config.Steps["captions"], &formats); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(formats, ",") != "process:presentation,process:video,process:notes" || string(config.Steps["process:notes"]) != `"publish:notes"` {
+		t.Fatal("notes must be processed and published alongside the existing recording formats")
+	}
+}
 func TestPrivateRuntimeFilesAndMountedConfig(t *testing.T) {
 	isolated(t)
 	old := runtimeDir
