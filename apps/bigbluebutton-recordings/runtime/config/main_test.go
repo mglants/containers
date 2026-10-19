@@ -126,9 +126,9 @@ func TestMergePreservesNestedDefaults(t *testing.T) {
 		t.Fatal("nested default lost")
 	}
 }
-func TestNotesRecordingWorkflow(t *testing.T) {
+func TestOptionalRecordingWorkflows(t *testing.T) {
 	isolated(t)
-	t.Setenv("RECORDING_FORMATS", "presentation,video,notes")
+	t.Setenv("RECORDING_FORMATS", "presentation,video,notes,podcast")
 	var config struct {
 		Steps map[string]json.RawMessage `json:"steps"`
 	}
@@ -139,8 +139,8 @@ func TestNotesRecordingWorkflow(t *testing.T) {
 	if err := json.Unmarshal(config.Steps["captions"], &formats); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(formats, ",") != "process:presentation,process:video,process:notes" || string(config.Steps["process:notes"]) != `"publish:notes"` {
-		t.Fatal("notes must be processed and published alongside the existing recording formats")
+	if strings.Join(formats, ",") != "process:presentation,process:video,process:notes,process:podcast" || string(config.Steps["process:notes"]) != `"publish:notes"` || string(config.Steps["process:podcast"]) != `"publish:podcast"` {
+		t.Fatal("notes and podcast must be processed and published alongside the existing recording formats")
 	}
 }
 func TestPrivateRuntimeFilesAndMountedConfig(t *testing.T) {

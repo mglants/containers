@@ -14,19 +14,20 @@ for name in ('Gemfile', 'Gemfile.lock', 'Rakefile'):
     shutil.copyfile(root / 'core' / name, out / name)
 for component in ('presentation', 'notes', 'podcast', 'screenshare', 'video'):
     shutil.copytree(root / component / 'scripts', out / 'scripts', dirs_exist_ok=True)
-# The notes scripts still load package defaults directly; use BBB's override-aware
+# These optional formats still load package defaults directly; use BBB's override-aware
 # reader so published links honor the configured public hostname and protocol.
-for phase in ('process', 'publish'):
-    path = out / 'scripts' / phase / 'notes.rb'
-    text = path.read_text()
-    old = "BigBlueButton.load_yaml('../../core/scripts/bigbluebutton.yml')"
-    if text.count(old) != 1:
-        raise ValueError(f'Upstream notes configuration loading changed: {phase}')
-    text = text.replace(old, 'BigBlueButton.read_props')
-    text, count = re.subn(r'Logger\.new\("#\{log_dir\}/notes/[^\n]+', 'Logger.new($stdout)', text)
-    if count != 1:
-        raise ValueError(f'Upstream notes logging changed: {phase}')
-    path.write_text(text)
+for component in ('notes', 'podcast'):
+    for phase in ('process', 'publish'):
+        path = out / 'scripts' / phase / f'{component}.rb'
+        text = path.read_text()
+        old = "BigBlueButton.load_yaml('../../core/scripts/bigbluebutton.yml')"
+        if text.count(old) != 1:
+            raise ValueError(f'Upstream {component} configuration loading changed: {phase}')
+        text = text.replace(old, 'BigBlueButton.read_props')
+        text, count = re.subn(r'Logger\.new\("#\{log_dir\}/' + component + r'/[^\n]+', 'Logger.new($stdout)', text)
+        if count != 1:
+            raise ValueError(f'Upstream {component} logging changed: {phase}')
+        path.write_text(text)
 for path in list(out.rglob('*.rb')) + [out / 'scripts/caption/presentation']:
     if path.is_file():
         text = path.read_text()

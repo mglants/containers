@@ -22,7 +22,7 @@ python3 -c "import perfect_freehand, bbb_presentation_video"
 `)
 	helpers.RequireCommandSucceeds(t, image, &helpers.ContainerConfig{Env: map[string]string{
 		"BBB_CONFIG_MODE": "env", "BBB_PUBLIC_URL": "https://bbb.example.test", "SHARED_SECRET": "test-only",
-		"RECORDING_FORMATS": "presentation,video,notes",
+		"RECORDING_FORMATS": "presentation,video,notes,podcast",
 	}}, "/bin/sh", "-ec", `set -eu
 bbb-runtime recordings --render-only
 id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1000
@@ -36,5 +36,13 @@ bundle exec ruby publish/notes.rb -m "$id-notes"
 file=/var/bigbluebutton/published/notes/$id
 cmp "$raw/notes/notes.pdf" "$file/notes.pdf"
 grep -q "https://bbb.example.test/notes/$id/notes.pdf" "$file/metadata.xml"
+mkdir -p "$raw/audio"
+ffmpeg -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=2 -c:a libopus "$raw/audio/podcast-test.webm"
+printf '%s\n' '<recording><metadata meetingId="podcast-test"/><event timestamp="1000" module="bbb-webrtc-sfu" eventname="AudioTrackPublishedEvent"><filename>podcast-test.webm</filename></event><event timestamp="3000" module="bbb-webrtc-sfu" eventname="AudioTrackUnpublishedEvent"><filename>podcast-test.webm</filename></event></recording>' > "$raw/events.xml"
+bundle exec ruby process/podcast.rb -m "$id"
+bundle exec ruby publish/podcast.rb -m "$id-podcast"
+file=/var/bigbluebutton/published/podcast/$id
+ffprobe -v error "$file/audio.ogg"
+grep -q "https://bbb.example.test/podcast/$id/audio.ogg" "$file/metadata.xml"
 `)
 }

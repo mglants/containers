@@ -38,6 +38,8 @@ ROUTES = {'bbb-web.nginx': ('bigbluebutton-web/bbb-web.nginx',
                              [('location /learning-analytics-dashboard/ {',
                                DASHBOARD_REPORTS + 'location /learning-analytics-dashboard/ {', 1)]),
  'notes-playback.nginx': ('record-and-playback/notes/scripts/notes-playback.nginx',
+                          [('/var/bigbluebutton/published', '/presentations/published', 1)]),
+ 'podcast.nginx': ('record-and-playback/podcast/scripts/podcast.nginx',
                           [('/var/bigbluebutton/published', '/presentations/published', 1)])}
 
 
