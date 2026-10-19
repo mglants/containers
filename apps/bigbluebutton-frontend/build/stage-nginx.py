@@ -68,6 +68,7 @@ def stage(source, output, version):
     # The historical /presentation route did not need an index in our split storage layout.
     published = re.sub(r'^[ \t]*index[^;]+;\n', '', published, flags=re.M)
     (output / 'playback.nginx').write_text(f'# BBB {revision}: upstream playback and presentation routes.\n' + blocks[0] + '\n' + player + published + '\n')
+    (output / 'summary.nginx').write_text('location /summary/ {\n    alias /presentations/published/summary/;\n    index index.html;\n    autoindex off;\n}\n')
 
 
 if __name__ == '__main__':

@@ -103,5 +103,16 @@ for name in ('process', 'publish'):
     p.write_text(text.replace('Logger.new(log_file)', 'Logger.new($stdout)').replace('Logger.new(logfile)', 'Logger.new($stdout)'))
 PYCODE
 RUN python3 /tmp/bbb-build-4.py && rm /tmp/bbb-build-4.py
+COPY runtime/summary.rb /usr/local/bigbluebutton/core/lib/recordandplayback/summary.rb
+# droast ignore=DF077
+COPY <<'PYCODE' /tmp/bbb-summary-entrypoints.py
+from pathlib import Path
+root = Path('/usr/local/bigbluebutton/core/scripts')
+for phase in ('process', 'publish'):
+    (root / phase / 'summary.rb').write_text("require_relative '../../lib/recordandplayback/summary'\n" + f"BigBlueButton::Summary.run('{phase}', ARGV)\n")
+PYCODE
+RUN python3 /tmp/bbb-summary-entrypoints.py && rm /tmp/bbb-summary-entrypoints.py
+RUN --mount=type=bind,source=runtime/summary_test.rb,target=/tmp/summary_test.rb,readonly \
+    bundle exec ruby /tmp/summary_test.rb
 ENV PATH=/opt/renderer/bin:$PATH RECORDING_FORMATS=presentation,video
 USER 10001:10001

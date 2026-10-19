@@ -378,9 +378,9 @@ func render(role string) map[string][]byte {
 		steps := object{"archive": "sanity", "sanity": "captions"}
 		for _, f := range formats {
 			switch f {
-			case "presentation", "video", "notes", "podcast":
+			case "presentation", "video", "notes", "podcast", "summary":
 			default:
-				panic(errors.New("RECORDING_FORMATS supports presentation,video,notes,podcast"))
+				panic(errors.New("RECORDING_FORMATS supports presentation,video,notes,podcast,summary"))
 			}
 			next = append(next, "process:"+f)
 			steps["process:"+f] = "publish:" + f

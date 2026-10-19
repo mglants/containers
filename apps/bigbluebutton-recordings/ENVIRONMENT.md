@@ -142,3 +142,41 @@ The Dockerfile runs the Go renderer tests while building the shared adapter.
 `ci/goss.yaml` checks each published component and non-root execution. Stable-release
 discovery tests remain in `tests/`. The ignored `.local-testing/` fixtures add
 read-only filesystem, secret-file, authenticated Redis and full local-stack checks.
+
+## Optional AI recap recording format
+
+Append `summary` to `RECORDING_FORMATS` on the recording workers and starter to
+publish a recap, transcript and TXT downloads alongside the standard formats.
+This uploads recorded meeting audio to the selected provider after recording;
+it does not reuse live captions. No additional service or Greenlight build is required.
+The frontend image must include the `/summary/` static route.
+
+Provider names follow upstream bbb-livekit-stt development configuration:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `STT_PROVIDER` | `gladia` | Recap provider: `gladia` or `openai`. |
+| `GLADIA_API_KEY` | required for Gladia | Existing Gladia account key. |
+| `GLADIA_BASE_URL` | `https://api.gladia.io` | Gladia HTTP API origin. |
+| `GLADIA_MODEL` | `solaria-1` | Recorded transcription model; default supports Russian. |
+| `GLADIA_LANGUAGES` | `ru,en` | Comma-separated transcription language codes. |
+| `GLADIA_CODE_SWITCHING` | `true` | Allow switching languages. |
+| `OPENAI_API_KEY` | required for OpenAI | OpenAI or compatible endpoint key. |
+| `OPENAI_BASE_URL` | `https://api.openai.com` | API origin, without `/v1`, matching upstream STT. |
+| `OPENAI_STT_MODEL` | `gpt-4o-transcribe` | Recorded transcription model. |
+| `OPENAI_SUMMARY_MODEL` | `gpt-4.1-mini` | Text model for Russian recaps; endpoint must support chat completions. |
+| `SUMMARY_MIN_DURATION_SECONDS` | `0` | Skip recordings at or below this duration. |
+| `SUMMARY_TIMEOUT_SECONDS` | `1800` | Gladia job polling timeout; retry resumes the same job. |
+
+The pinned live STT release v0.3.0 remains Gladia-only; `STT_PROVIDER=openai`
+currently selects the recap provider only in this image. Not all live streaming
+provider options apply to recorded audio. OpenAI uploads use five-minute MP3
+segments and cache each completed transcription. Long transcripts are summarized
+in bounded chunks before a final recap. No audio is sent to an unselected provider.
+
+Provider state is retained under `recording/summary/<recording-id>` for retries.
+An interrupted submission with an unknown outcome is blocked rather than billed
+again automatically: inspect its provider dashboard and the `.started` or
+`submission-started.json` marker before retrying. Provider responses and keys are
+not logged. Published transcripts and recaps have the same static access model as
+other BBB recording formats. Existing recordings are not automatically backfilled.

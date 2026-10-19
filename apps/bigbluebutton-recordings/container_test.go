@@ -22,7 +22,7 @@ python3 -c "import perfect_freehand, bbb_presentation_video"
 `)
 	helpers.RequireCommandSucceeds(t, image, &helpers.ContainerConfig{Env: map[string]string{
 		"BBB_CONFIG_MODE": "env", "BBB_PUBLIC_URL": "https://bbb.example.test", "SHARED_SECRET": "test-only",
-		"RECORDING_FORMATS": "presentation,video,notes,podcast",
+		"RECORDING_FORMATS": "presentation,video,notes,podcast,summary",
 	}}, "/bin/sh", "-ec", `set -eu
 bbb-runtime recordings --render-only
 id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1000
