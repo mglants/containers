@@ -69,7 +69,7 @@ RUN --mount=type=cache,id=bbb-npm-playback,target=/root/.npm,sharing=locked \
 # Browser source maps are debugging artifacts; keep shipped application assets.
 RUN find /sources/playback/build -type f \( -name "*.map" -o -name "*.map.gz" -o -name "*.map.br" \) -delete
 
-FROM nginx:1.31-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d AS frontend
+FROM nginx:1.31-alpine@sha256:a3554c0d0b48177b1413c26e01f695334428020d9df01243fbae3e11cfd17417 AS frontend
 COPY --from=build-frontend /out/client/ /usr/share/bigbluebutton/html5-client/
 COPY --from=build-playback /sources/playback/build/ /var/bigbluebutton/playback/presentation/2.3/
 COPY --from=build-frontend /out/dashboard/ /var/bigbluebutton/learning-dashboard/
