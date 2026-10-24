@@ -4,7 +4,7 @@ ARG VERSION
 # renovate: datasource=github-tags depName=bigbluebutton/bbb-livekit-stt
 ARG STT_VERSION=v0.3.0
 # renovate: datasource=pypi depName=uv
-ARG UV_VERSION=0.13.1
+ARG UV_VERSION=0.13.5
 
 FROM golang:1.27-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build-runtime
 ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
