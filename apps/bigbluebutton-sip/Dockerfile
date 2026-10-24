@@ -7,7 +7,7 @@ ARG SIP_VERSION=v1.20.0
 FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS source-tools
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 bzip2 && rm -rf /var/lib/apt/lists/*
 
-FROM golang:1.27-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build-runtime
+FROM golang:1.27-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS build-runtime
 ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
 WORKDIR /source
 COPY runtime/config/ ./
@@ -19,7 +19,7 @@ ARG SIP_VERSION
 ADD https://codeload.github.com/livekit/sip/tar.gz/refs/tags/${SIP_VERSION} /tmp/sip.tar
 RUN mkdir -p /sources/sip && tar --no-same-owner -xf /tmp/sip.tar --strip-components=1 -C /sources/sip && rm /tmp/sip.tar
 
-FROM golang:1.27-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build-sip
+FROM golang:1.27-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS build-sip
 ARG SIP_VERSION
 ENV GOTOOLCHAIN=local
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libopus-dev libopusfile-dev libsoxr-dev && rm -rf /var/lib/apt/lists/*
