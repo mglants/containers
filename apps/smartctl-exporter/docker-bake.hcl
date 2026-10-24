@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=prometheus-community/smartctl_exporter versioning=semver
-  default = "v0.14.0"
+  default = "v0.15.0"
 }
 
 variable "SOURCE" {
