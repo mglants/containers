@@ -11,8 +11,6 @@ spec:
       # Select cdn, certificate-manager, or cdn,certificate-manager.
       selectel-cert-sync.glants.xyz/stores: "certificate-manager"
       selectel-cert-sync.glants.xyz/name: production-cdn-example-com
-      # Empty = upload/update only. Add existing CDN resource UUIDs to bind them.
-      selectel-cert-sync.glants.xyz/resource-ids: ""
   duration: 2160h # Requested 90 days; the issuer determines actual lifetime.
   renewBeforePercentage: 33
   privateKey:

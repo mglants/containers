@@ -15,7 +15,6 @@ from cryptography.x509.oid import NameOID
 
 import sync
 
-
 def issue(days=90, starts=-1, issuer=None):
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "cdn.example.com")])
@@ -29,36 +28,28 @@ def issue(days=90, starts=-1, issuer=None):
     cert = builder.sign(issuer[1] if issuer else key, hashes.SHA256())
     return cert, key
 
-
 def pem(cert, key):
     return (cert.public_bytes(serialization.Encoding.PEM),
             key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL,
                               serialization.NoEncryption()))
 
-
 class FakeAPI:
     def __init__(self):
         self.entries = []
         self.writes = []
-        self.resource = {"certificate": None, "names": ["example.selcdn.net", "cdn.example.com"],
-                         "cdn_domain": "example.selcdn.net"}
-        self.fail_binding = False
 
-    def call(self, method, path, payload=None, envelope=True):
-        if method == "GET":
-            return self.entries if path == "/certificate" else dict(self.resource)
+    def call(self, method, path, payload=None):
+        # Fail any attempt to read or mutate resources outside the certificate store.
+        if method == "GET" and path == "/certificate":
+            return self.entries
+        if (method, path) not in [("POST", "/certificate"), ("PATCH", "/certificate/7")]:
+            raise AssertionError("Unexpected API route: " + method + " " + path)
         self.writes.append((method, path, payload))
-        if path.startswith("/resources/"):
-            if self.fail_binding:
-                raise sync.SyncError("resource busy")
-            self.resource.update(payload)
-            return {"status": "accept"}
         if method == "POST":
-            self.entries = [{"seq": 7, "comment": payload["comment"]}]
+            self.entries.append({"seq": 7, "comment": payload["comment"]})
         else:
             self.entries[0]["comment"] = payload["comment"]
         return {"seq": 7}
-
 
 class FakeManagerAPI:
     def __init__(self):
@@ -78,7 +69,6 @@ class FakeManagerAPI:
             return dict(self.entries[-1])
         self.entries[0]["version"] += 1
         return {}  # HTTP 204 has no JSON payload.
-
 
 class SyncTests(unittest.TestCase):
     @classmethod
@@ -145,7 +135,7 @@ class SyncTests(unittest.TestCase):
 
     def test_dry_run_does_not_write(self):
         api = FakeAPI()
-        sync.reconcile(api, "prod", self.material(), ["resource"], dry_run=True)
+        sync.reconcile(api, "prod", self.material(), dry_run=True)
         self.assertEqual(api.writes, [])
 
     def test_duplicate_names_fail_without_writes(self):
@@ -154,18 +144,6 @@ class SyncTests(unittest.TestCase):
         with self.assertRaisesRegex(sync.SyncError, "Multiple"):
             sync.reconcile(api, "prod", self.material())
         self.assertEqual(api.writes, [])
-
-    def test_partial_failure_recovers_binding_without_second_upload(self):
-        api = FakeAPI()
-        api.fail_binding = True
-        material = self.material()
-        with self.assertRaises(sync.SyncError):
-            sync.reconcile(api, "prod", material, ["resource"])
-        api.fail_binding = False
-        sync.reconcile(api, "prod", material, ["resource"])
-        sync.reconcile(api, "prod", material, ["resource"])
-        self.assertEqual(sum(path == "/certificate" for _, path, _ in api.writes), 1)
-        self.assertEqual(api.resource["certificate"], 7)
 
     def test_other_sync_name_is_not_overwritten(self):
         api = FakeAPI()
@@ -219,26 +197,6 @@ class SyncTests(unittest.TestCase):
         self.assertNotIn("scope", payload["auth"])
         self.assertEqual(payload["auth"]["identity"]["methods"], ["application_credential"])
         self.assertEqual(payload["auth"]["identity"]["application_credential"]["id"], "credential-id")
-
-    def test_unbound_resource_without_certificate_field_can_be_bound(self):
-        api = FakeAPI()
-        del api.resource["certificate"]
-        sync.reconcile(api, "prod", self.material(), ["resource"])
-        self.assertEqual(api.resource["certificate"], 7)
-
-    def test_domain_gap_prevents_certificate_upload_and_binding(self):
-        api = FakeAPI()
-        api.resource["names"].append("uncovered.example.com")
-        with self.assertRaisesRegex(sync.SyncError, "does not cover"):
-            sync.reconcile(api, "prod", self.material(), ["resource"])
-        self.assertEqual(api.writes, [])
-
-    def test_wildcard_matches_one_label_only(self):
-        for name, expected in [("cdn.example.com", True), ("example.com", False),
-                               ("apk.s3.example.com", False), ("cdn.example.com.attacker.test", False),
-                               ("CDN.EXAMPLE.COM.", True)]:
-            with self.subTest(name=name):
-                self.assertEqual(sync.covers_hostname("*.example.com", name), expected)
 
     def secret(self, name="cdn-tls", annotations=None):
         cert, key = pem(self.cert, self.key)
@@ -301,22 +259,31 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(result, 1)
         reconcile.assert_called_once()
 
-    def test_conflicting_annotations_prevent_all_remote_changes(self):
-        for field, value in [("name", "same-name"), ("resource-ids", "00000000-0000-4000-8000-000000000001")]:
-            with self.subTest(field=field):
-                annotations = {sync.ANNOTATION_PREFIX + "enabled": "true",
-                               sync.ANNOTATION_PREFIX + "stores": "cdn", sync.ANNOTATION_PREFIX + field: value}
-                kube = Mock()
-                kube.selected_secrets.return_value = [("network", self.secret(annotations=annotations)),
-                                                      ("network", self.secret("other", annotations))]
-                with patch.object(sync.API, "authenticate") as auth:
-                    with self.assertRaisesRegex(sync.SyncError, "Multiple"):
-                        sync.run_discovery(kube, {"CLUSTER_NAME": "example-cluster", "SYNC_NAMESPACES": "network"})
-                auth.assert_not_called()
-
     def test_discovery_requires_namespace_allowlist(self):
         with self.assertRaisesRegex(sync.SyncError, "SYNC_NAMESPACES"):
             sync.run_discovery(Mock(), {"CLUSTER_NAME": "example-cluster"})
+
+    def test_duplicate_sync_names_fail_before_authentication(self):
+        annotations = {sync.ANNOTATION_PREFIX + "enabled": "true",
+                       sync.ANNOTATION_PREFIX + "name": "same-name"}
+        kube = Mock()
+        kube.selected_secrets.return_value = [("network", self.secret(annotations=annotations)),
+                                              ("network", self.secret("other", annotations))]
+        with patch.object(sync.API, "authenticate") as auth:
+            with self.assertRaisesRegex(sync.SyncError, "Multiple"):
+                sync.run_discovery(kube, {"CLUSTER_NAME": "example", "SYNC_NAMESPACES": "network"})
+        auth.assert_not_called()
+
+    def test_cdn_discovery_uses_only_certificate_store_endpoints(self):
+        # FakeAPI rejects every API route outside the certificate store.
+        kube = Mock()
+        kube.selected_secrets.return_value = [("network", self.secret())]
+        api = FakeAPI()
+        env = {"CLUSTER_NAME": "example", "SYNC_NAMESPACES": "network"}
+        with patch.object(sync.API, "authenticate", return_value=api):
+            self.assertEqual(sync.run_discovery(kube, env), 0)
+            self.assertEqual(sync.run_discovery(kube, env), 0)
+        self.assertEqual([(method, path) for method, path, _ in api.writes], [("POST", "/certificate")])
 
     def test_manager_create_skip_and_version_update_preserve_uuid_and_consumers(self):
         api = FakeManagerAPI()
@@ -442,21 +409,10 @@ class SyncTests(unittest.TestCase):
                         self.assertEqual(sync.main(), 0)
         self.assertEqual(len(api.writes), 1)
 
-    def test_manager_only_rejects_cdn_binding_ids_before_auth(self):
-        annotations = {sync.ANNOTATION_PREFIX + "enabled": "true",
-                       sync.ANNOTATION_PREFIX + "stores": "certificate-manager",
-                       sync.ANNOTATION_PREFIX + "resource-ids": "00000000-0000-4000-8000-000000000001"}
-        kube = Mock()
-        kube.selected_secrets.return_value = [("network", self.secret(annotations=annotations))]
-        with patch.object(sync.API, "authenticate") as auth:
-            with self.assertRaisesRegex(sync.SyncError, "require the cdn store"):
-                sync.run_discovery(kube, {"CLUSTER_NAME": "example", "SYNC_NAMESPACES": "network"})
-        auth.assert_not_called()
-
     def test_failure_of_one_destination_does_not_block_the_other(self):
         with patch.object(sync, "reconcile_with_retry", side_effect=[sync.SyncError("CDN failed"), None]) as reconcile:
             with self.assertLogs(sync.LOG, level="ERROR"):
-                self.assertFalse(sync.sync_destinations(Mock(), "prod", self.material(), (), ("cdn", "certificate-manager")))
+                self.assertFalse(sync.sync_destinations(Mock(), "prod", self.material(), ("cdn", "certificate-manager")))
         self.assertEqual(reconcile.call_count, 2)
         self.assertEqual(reconcile.call_args.kwargs["store"], "certificate-manager")
 
@@ -464,10 +420,9 @@ class SyncTests(unittest.TestCase):
         api = Mock()
         with patch.object(sync, "reconcile_manager", side_effect=[sync.SyncError("temporary failure"), ("id", "update")]) as manager:
             with patch.object(sync.time, "sleep"):
-                sync.reconcile_with_retry(api, "prod", self.material(), (), store="certificate-manager")
+                sync.reconcile_with_retry(api, "prod", self.material(), store="certificate-manager")
         self.assertEqual(manager.call_count, 2)
         api.call.assert_not_called()
-
 
 if __name__ == "__main__":
     unittest.main()

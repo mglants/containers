@@ -26,7 +26,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: sync
-              image: ghcr.io/mglants/selectel-cert-sync:0.2.0
+              image: ghcr.io/mglants/selectel-cert-sync:0.3.0
               imagePullPolicy: IfNotPresent
               securityContext:
                 allowPrivilegeEscalation: false
@@ -47,10 +47,6 @@ spec:
                 # Stable and unique per source/target project. Do not rename after upload.
                 - name: SYNC_NAME
                   value: production-cdn-example-com
-                # Optional existing CDN resource UUIDs, comma-separated.
-                # Empty = upload/update certificate only; bind it manually once.
-                - name: CDN_RESOURCE_IDS
-                  value: ""
                 - name: SELECTEL_USERNAME
                   valueFrom:
                     secretKeyRef:

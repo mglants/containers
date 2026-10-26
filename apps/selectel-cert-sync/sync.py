@@ -99,19 +99,14 @@ class API:
             raise SyncError("Selectel authentication returned no project token")
         return cls(token)
 
-    def call(self, method, path, payload=None, envelope=True):
+    def call(self, method, path, payload=None):
         result, _ = self.http(method, self.base_url + path, payload, self.token)
-        if envelope:
-            # CDN certificate operations use numeric status in addition to HTTP.
-            if not isinstance(result, dict) or type(result.get("status")) is not int or result["status"] != 0:
-                raise SyncError("Selectel certificate operation failed or returned an unknown response")
-            if "data" not in result:
-                raise SyncError("Selectel certificate response has no data")
-            return result["data"]
-        # Resource PATCH returns status=accept; successful HTTP alone is insufficient.
-        if method == "PATCH" and (not isinstance(result, dict) or result.get("status") != "accept"):
-            raise SyncError("Selectel did not accept the CDN resource update")
-        return result
+        # CDN certificate operations use numeric status in addition to HTTP.
+        if not isinstance(result, dict) or type(result.get("status")) is not int or result["status"] != 0:
+            raise SyncError("Selectel certificate operation failed or returned an unknown response")
+        if "data" not in result:
+            raise SyncError("Selectel certificate response has no data")
+        return result["data"]
 
     def manager_call(self, method, path, payload=None, raw=False):
         # Certificate Manager uses HTTP statuses and raw PEM, not CDN envelopes.
@@ -162,13 +157,6 @@ def parse_material(cert_bytes, key_bytes, min_valid_hours=24):
         raise SyncError("Cannot validate TLS certificate/key/chain") from None
 
 
-def parse_resource_ids(raw):
-    try:
-        return tuple(dict.fromkeys(str(UUID(i.strip())) for i in raw.split(",") if i.strip()))
-    except ValueError:
-        raise SyncError("CDN resource IDs must be comma-separated UUIDs") from None
-
-
 def parse_stores(raw):
     stores = tuple(dict.fromkeys(s.strip() for s in raw.split(",") if s.strip()))
     if not stores or any(s not in ("cdn", "certificate-manager") for s in stores):
@@ -180,34 +168,6 @@ def validate_name(name):
     if not re.fullmatch(r"[a-zA-Z0-9_.-]{1,80}", name):
         raise SyncError("Sync name must contain 1-80 letters, digits, dots, underscores or hyphens")
     return name
-
-
-def covers_hostname(pattern, hostname):
-    pattern, hostname = pattern.lower().rstrip("."), hostname.lower().rstrip(".")
-    if pattern.startswith("*."):
-        return hostname.count(".") == pattern.count(".") and hostname.endswith(pattern[1:])
-    return pattern == hostname
-
-
-def validate_resource_domains(certificate, resource):
-    """Check all custom CDN names before uploading or changing a binding."""
-    names = resource.get("names")
-    default = resource.get("cdn_domain")
-    if not isinstance(names, list) or not names or not isinstance(default, str) or not default:
-        raise SyncError("CDN resource has no usable domain list")
-    try:
-        leaf = x509.load_pem_x509_certificate(certificate.encode())
-        sans = leaf.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
-        patterns = sans.get_values_for_type(x509.DNSName)
-    except Exception:
-        raise SyncError("TLS certificate has no usable DNS subject alternative names") from None
-    for name in names:
-        if not isinstance(name, str) or not name:
-            raise SyncError("CDN resource has an invalid domain name")
-        if name.lower().rstrip(".") == default.lower().rstrip("."):
-            continue  # Selectel serves its provider domain with its own certificate.
-        if not any(covers_hostname(pattern, name) for pattern in patterns):
-            raise SyncError(f"TLS certificate does not cover CDN domain {name}")
 
 
 class Kubernetes:
@@ -266,7 +226,7 @@ class Kubernetes:
 
 
 def discovered_jobs(kube, namespaces, cluster_name):
-    jobs, seen_names, owners = [], set(), {}
+    jobs, seen_names = [], set()
     for namespace, secret in kube.selected_secrets(namespaces):
         meta = secret["metadata"]
         source = namespace + "/" + meta["name"]
@@ -279,14 +239,7 @@ def discovered_jobs(kube, namespaces, cluster_name):
             raise SyncError("Multiple selected Secrets have the same sync name")
         seen_names.add(name)
         stores = parse_stores(annotations.get(ANNOTATION_PREFIX + "stores", "certificate-manager"))
-        ids = parse_resource_ids(annotations.get(ANNOTATION_PREFIX + "resource-ids", ""))
-        if ids and "cdn" not in stores:
-            raise SyncError("CDN resource IDs require the cdn store")
-        for resource_id in ids:
-            if resource_id in owners:
-                raise SyncError("Multiple selected Secrets target the same CDN resource")
-            owners[resource_id] = source
-        jobs.append((source, secret, name, ids, stores))
+        jobs.append((source, secret, name, stores))
     return jobs
 
 
@@ -303,7 +256,7 @@ def run_discovery(kube, env, dry_run=False):
         return 0
     api = API.authenticate(env)
     failed = False
-    for source, secret, name, ids, stores in jobs:
+    for source, secret, name, stores in jobs:
         try:
             try:
                 data = secret["data"]
@@ -312,7 +265,7 @@ def run_discovery(kube, env, dry_run=False):
             except (KeyError, ValueError, TypeError):
                 raise SyncError("Selected TLS Secret has missing or invalid data") from None
             LOG.info("source=%s sync_name=%s", source, name)
-            if not sync_destinations(api, name, material, ids, stores, dry_run):
+            if not sync_destinations(api, name, material, stores, dry_run):
                 failed = True
         except SyncError as exc:
             LOG.error("source=%s error=%s", source, exc)
@@ -326,7 +279,7 @@ def positive_seq(value):
     return value
 
 
-def reconcile(api, name, material, resource_ids=(), dry_run=False):
+def reconcile(api, name, material, dry_run=False):
     certificate, private_key, digest, expires = material
     prefix = f"cert-sync:{name}:sha256:"
     marker = prefix + digest
@@ -340,15 +293,6 @@ def reconcile(api, name, material, resource_ids=(), dry_run=False):
     seq = positive_seq(existing.get("seq")) if existing else None
     action = "unchanged" if existing and existing.get("comment") == marker else ("update" if existing else "create")
 
-    # Preflight every configured resource before writing a certificate or binding.
-    resources = []
-    for resource_id in resource_ids:
-        resource = api.call("GET", f"/resources/{resource_id}", envelope=False)
-        if not isinstance(resource, dict):
-            raise SyncError("Selectel returned an invalid CDN resource")
-        validate_resource_domains(certificate, resource)
-        resources.append((resource_id, resource))
-
     if action != "unchanged" and not dry_run:
         payload = {"certificate": certificate, "private_key": private_key, "comment": marker}
         path = f"/certificate/{seq}" if seq else "/certificate"
@@ -359,14 +303,6 @@ def reconcile(api, name, material, resource_ids=(), dry_run=False):
         if seq is not None and returned_seq != seq:
             raise SyncError("Selectel returned a different certificate ID after update")
         seq = returned_seq
-
-    for resource_id, resource in resources:
-        if seq is not None and resource.get("certificate") == seq:
-            continue
-        LOG.info("resource=%s binding=%s certificate_id=%s", resource_id,
-                 "planned" if dry_run else "requested", seq)
-        if not dry_run:
-            api.call("PATCH", f"/resources/{resource_id}", {"certificate": seq}, envelope=False)
 
     LOG.info("action=%s dry_run=%s certificate_id=%s sha256=%s expires=%s",
              action, dry_run, seq, digest, expires.isoformat())
@@ -424,7 +360,7 @@ def reconcile_manager(api, name, material, dry_run=False):
     return cert_id, action
 
 
-def reconcile_with_retry(api, name, material, ids, dry_run=False, store="cdn"):
+def reconcile_with_retry(api, name, material, dry_run=False, store="cdn"):
     # Read remote state on each retry to recover partial success.
     for attempt in range(3):
         try:
@@ -432,7 +368,7 @@ def reconcile_with_retry(api, name, material, ids, dry_run=False, store="cdn"):
                 return reconcile_manager(api, name, material, dry_run)
             if store != "cdn":
                 raise SyncError("Unknown sync store")
-            return reconcile(api, name, material, ids, dry_run)
+            return reconcile(api, name, material, dry_run)
         except SyncError:
             if attempt == 2:
                 raise
@@ -440,14 +376,14 @@ def reconcile_with_retry(api, name, material, ids, dry_run=False, store="cdn"):
             time.sleep(5 * (attempt + 1))
 
 
-def sync_destinations(api, name, material, ids, stores, dry_run=False):
+def sync_destinations(api, name, material, stores, dry_run=False):
     success = True
     for store in stores:
         try:
             if store == "cdn":
-                reconcile_with_retry(api, name, material, ids, dry_run)
+                reconcile_with_retry(api, name, material, dry_run)
             else:
-                reconcile_with_retry(api, name, material, (), dry_run, store=store)
+                reconcile_with_retry(api, name, material, dry_run, store=store)
         except SyncError as exc:
             LOG.error("sync_name=%s store=%s error=%s", name, store, exc)
             success = False
@@ -464,13 +400,10 @@ def main():
         if args.discover:
             return run_discovery(Kubernetes(), os.environ, args.dry_run)
         name = validate_name(os.environ.get("SYNC_NAME", ""))
-        ids = parse_resource_ids(os.environ.get("CDN_RESOURCE_IDS", ""))
         stores = parse_stores(os.environ.get("SYNC_STORES", "certificate-manager"))
-        if ids and "cdn" not in stores:
-            raise SyncError("CDN resource IDs require the cdn store")
         material = load_material(os.environ.get("TLS_DIRECTORY", "/tls"))
         api = API.authenticate(os.environ)
-        return 0 if sync_destinations(api, name, material, ids, stores, args.dry_run) else 1
+        return 0 if sync_destinations(api, name, material, stores, args.dry_run) else 1
     except SyncError as exc:
         LOG.error("%s", exc)
         return 1
