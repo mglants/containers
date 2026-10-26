@@ -1,6 +1,34 @@
-# cert-manager → Selectel CDN
+# cert-manager → Selectel certificate stores
 
-A Python sync job that uploads a cert-manager TLS Secret to the **Selectel CDN v3 certificate API** and updates it after renewal. This uses the CDN certificate store, not Selectel's separate Certificate Manager API.
+A Python sync job that uploads cert-manager TLS Secrets to **Selectel CDN certificates**, **Selectel Certificate Manager**, or both, and updates them after renewal. Both destinations share one project-scoped IAM token per run. The default destination is Certificate Manager; CDN syncing requires an explicit `cdn` destination.
+
+## Choosing destinations
+
+Set the `selectel-cert-sync.glants.xyz/stores` annotation on each opted-in TLS Secret (normally through `Certificate.spec.secretTemplate.annotations`):
+
+```yaml
+spec:
+  secretTemplate:
+    annotations:
+      selectel-cert-sync.glants.xyz/enabled: "true"
+      selectel-cert-sync.glants.xyz/name: production-example-certificate
+      selectel-cert-sync.glants.xyz/stores: "cdn,certificate-manager"
+      selectel-cert-sync.glants.xyz/resource-ids: "<cdn-resource-uuid>"
+```
+
+| `stores` value | Destination |
+| --- | --- |
+| Omitted or `certificate-manager` | Certificate Manager only (default); omit CDN `resource-ids` |
+| `cdn` | CDN certificate store only |
+| `cdn,certificate-manager` | Both stores; resource IDs apply only to CDN |
+
+Certificate Manager uses `https://cloud.api.selcloud.ru/certificate-manager/v1`. Managed records have the stable name `cert-sync:<sync-name>`. The app finds that exact name, compares the normalized stored **public certificate chain** against the source, and creates a new version on renewal using `POST /cert/{id}`. The UUID is preserved; the app does not rename records or change consumer associations. It never downloads private keys. A failed destination is retried independently, and does not prevent attempts to sync to the other destination. The Job exits nonzero if any destination fails.
+
+Certificate Manager and CDN use separate records and separate IDs. Uploading to Certificate Manager does not bind cloud load balancers, and does not update the CDN store unless `cdn` is also selected. Removing a destination annotation stops future updates to that store and retains the remote certificate. Existing manual records are not adopted; duplicate managed names cause a failure before writing that record.
+
+When upgrading from `0.1.0`, explicitly add `stores: "cdn"` or `stores: "cdn,certificate-manager"` to existing CDN sources before upgrading. A source that still has CDN resource IDs but omits the CDN destination is rejected rather than silently changing its targets.
+
+For single-mounted-Secret mode, set `SYNC_STORES=certificate-manager` or `SYNC_STORES=cdn,certificate-manager`. Its default is `certificate-manager`. Supplying CDN resource IDs without selecting the CDN store is rejected.
 
 One CronJob can run in `kube-system`, mount the existing Selectel `cloud-config` Secret, and sync annotation-selected TLS Secrets from explicitly allowed namespaces. Authentication is shared across all sources in a run. A simpler single-mounted-Secret mode is also available. No custom resources, database, or persistent volume is needed.
 
@@ -21,6 +49,7 @@ spec:
     annotations:
       selectel-cert-sync.glants.xyz/enabled: "true"
       selectel-cert-sync.glants.xyz/name: production-example-cdn
+      selectel-cert-sync.glants.xyz/stores: "cdn"
       selectel-cert-sync.glants.xyz/resource-ids: "00000000-0000-4000-8000-000000000001,00000000-0000-4000-8000-000000000002,00000000-0000-4000-8000-000000000003"
 ```
 
@@ -30,6 +59,7 @@ This is an annotation fragment for the existing Certificate, not a complete repl
 | --- | --- |
 | `enabled` | Only the exact string `"true"` opts a Secret in |
 | `name` | Optional stable remote ownership name; defaults to a hash of cluster/namespace/Secret name |
+| `stores` | `certificate-manager` (default), `cdn`, or both, comma-separated |
 | `resource-ids` | Optional comma-separated CDN resource UUIDs; omit for upload/update only |
 
 Disable or remove `enabled` to stop future synchronization. The remote certificate and bindings are retained. A duplicate sync name or two selected Secrets targeting the same CDN resource fails the run before remote writes. Each source's certificate must cover **all custom domains** on every selected resource. A wildcard covers one DNS label: `*.example.com` covers `cdn.example.com`, but not `example.com` or `apk.s3.example.com`. Only the resource's exact provider `cdn_domain` is excluded from this check.
@@ -72,18 +102,18 @@ Renewal delivery normally takes up to five minutes plus scheduling and Selectel 
 
 ## Container build integration
 
-This app is built and released by the repository's shared workflows. `docker-bake.hcl` declares version `0.1.0`, image targets, and `linux/amd64` / `linux/arm64` platforms. Builds run the Python tests, and `container_test.go` repeats them inside the finished image and checks the entrypoint. The image runs as UID/GID 65532. Dependencies are pinned with hashes in `requirements.txt`; regenerate from `requirements.in` when updating them.
+This app is built and released by the repository's shared workflows. `docker-bake.hcl` declares version `0.2.0`, image targets, and `linux/amd64` / `linux/arm64` platforms. Builds run the Python tests, and `container_test.go` repeats them inside the finished image and checks the entrypoint. The image runs as UID/GID 65532. Dependencies are pinned with hashes in `requirements.txt`; regenerate from `requirements.in` when updating them.
 
 From the repository root, use `mise run local-build selectel-cert-sync`. Released images use `ghcr.io/mglants/selectel-cert-sync`; this change does not publish one.
 
 ## Build and deploy
 
-Requirements: cert-manager already installed, an existing issuer, a Selectel service user permitted to manage CDN in the target project, and an existing CDN resource if automatic binding is wanted. The certificate SANs must cover every custom CDN domain. Prefer a DNS-01 issuer because the public domain points at CDN, which can prevent HTTP-01 validation from reaching Kubernetes.
+Requirements: cert-manager already installed, an existing issuer, a Selectel service user permitted to manage the selected certificate stores in the target project, and an existing CDN resource if automatic binding is wanted. The certificate SANs must cover every custom CDN domain. Prefer a DNS-01 issuer because the public domain points at CDN, which can prevent HTTP-01 validation from reaching Kubernetes.
 
 ```sh
 cd apps/selectel-cert-sync
 docker buildx bake --load
-TEST_IMAGE=selectel-cert-sync:0.1.0 go test -count=1 -v ./...
+TEST_IMAGE=selectel-cert-sync:0.2.0 go test -count=1 -v ./...
 ```
 
 Edit `deploy/certificate.example.yaml` with your DNS names and issuer, or use an existing Certificate. Edit `deploy/cronjob.yaml` with your published image (prefer an immutable digest), TLS Secret name, and a stable `SYNC_NAME`. Set `CDN_RESOURCE_IDS` to comma-separated resource UUIDs to enable automatic binding, or leave it empty and select the uploaded certificate in Selectel once.
@@ -119,6 +149,7 @@ For multiple certificates, use one CronJob per source Secret with a distinct Cro
 | Environment variable | Purpose |
 | --- | --- |
 | `SYNC_NAME` | Required stable identifier, 1–80 letters/digits/`._-` |
+| `SYNC_STORES` | Mounted mode destinations: `certificate-manager` (default), `cdn`, or both |
 | `TLS_DIRECTORY` | Directory containing `tls.crt` and `tls.key`; default `/tls` |
 | `SELECTEL_USERNAME` | Required service-user name |
 | `SELECTEL_PASSWORD` | Required service-user password |
@@ -161,6 +192,7 @@ Tests generate ephemeral certificates and use fake/mock API responses; they do n
 ## API references
 
 - [Selectel CDN v3 API: certificate create/list/update and partial resource updates](https://docs.selectel.ru/en/api/cdn/)
+- [Selectel Certificate Manager API: upload and version updates](https://docs.selectel.ru/en/api/certificates-manager/)
 - [Selectel API URLs](https://docs.selectel.ru/en/api/urls/)
 - [Selectel project-scoped IAM authentication](https://docs.selectel.ru/en/api/authorization/)
 - [Selectel CDN certificate configuration](https://docs.selectel.ru/en/cdn/resources/tls-ssl-certificates/)

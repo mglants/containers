@@ -5,7 +5,7 @@ import io
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from urllib.error import HTTPError
 
 from cryptography import x509
@@ -58,6 +58,26 @@ class FakeAPI:
         else:
             self.entries[0]["comment"] = payload["comment"]
         return {"seq": 7}
+
+
+class FakeManagerAPI:
+    def __init__(self):
+        self.cert_id = "00000000-0000-4000-8000-000000000001"
+        self.entries = []
+        self.chain = b""
+        self.writes = []
+
+    def manager_call(self, method, path, payload=None, raw=False):
+        if method == "GET":
+            return self.chain if path.endswith("/ca_chain") else self.entries
+        self.writes.append((method, path, payload))
+        self.chain = "".join(payload["pem"]["certificates"]).encode()
+        if path == "/certs":
+            self.entries.append({"id": self.cert_id, "name": payload["name"], "version": 1,
+                                 "consumers": [{"id": "existing-consumer"}]})
+            return dict(self.entries[-1])
+        self.entries[0]["version"] += 1
+        return {}  # HTTP 204 has no JSON payload.
 
 
 class SyncTests(unittest.TestCase):
@@ -223,7 +243,8 @@ class SyncTests(unittest.TestCase):
     def secret(self, name="cdn-tls", annotations=None):
         cert, key = pem(self.cert, self.key)
         return {"metadata": {"name": name, "annotations": annotations or {
-            sync.ANNOTATION_PREFIX + "enabled": "true"}}, "type": "kubernetes.io/tls",
+            sync.ANNOTATION_PREFIX + "enabled": "true",
+            sync.ANNOTATION_PREFIX + "stores": "cdn"}}, "type": "kubernetes.io/tls",
             "data": {"tls.crt": base64.b64encode(cert).decode(),
                      "tls.key": base64.b64encode(key).decode()}}
 
@@ -283,7 +304,8 @@ class SyncTests(unittest.TestCase):
     def test_conflicting_annotations_prevent_all_remote_changes(self):
         for field, value in [("name", "same-name"), ("resource-ids", "00000000-0000-4000-8000-000000000001")]:
             with self.subTest(field=field):
-                annotations = {sync.ANNOTATION_PREFIX + "enabled": "true", sync.ANNOTATION_PREFIX + field: value}
+                annotations = {sync.ANNOTATION_PREFIX + "enabled": "true",
+                               sync.ANNOTATION_PREFIX + "stores": "cdn", sync.ANNOTATION_PREFIX + field: value}
                 kube = Mock()
                 kube.selected_secrets.return_value = [("network", self.secret(annotations=annotations)),
                                                       ("network", self.secret("other", annotations))]
@@ -295,6 +317,156 @@ class SyncTests(unittest.TestCase):
     def test_discovery_requires_namespace_allowlist(self):
         with self.assertRaisesRegex(sync.SyncError, "SYNC_NAMESPACES"):
             sync.run_discovery(Mock(), {"CLUSTER_NAME": "example-cluster"})
+
+    def test_manager_create_skip_and_version_update_preserve_uuid_and_consumers(self):
+        api = FakeManagerAPI()
+        material = self.material()
+        self.assertEqual(sync.reconcile_manager(api, "prod", material), (api.cert_id, "create"))
+        self.assertEqual(sync.reconcile_manager(api, "prod", material), (api.cert_id, "unchanged"))
+        cert, key = issue()
+        changed = self.material(cert, key)
+        self.assertEqual(sync.reconcile_manager(api, "prod", changed), (api.cert_id, "update"))
+        self.assertEqual(sync.reconcile_manager(api, "prod", changed), (api.cert_id, "unchanged"))
+        self.assertEqual([w[:2] for w in api.writes], [("POST", "/certs"), ("POST", "/cert/" + api.cert_id)])
+        self.assertEqual(api.entries[0]["version"], 2)
+        self.assertEqual(api.entries[0]["consumers"], [{"id": "existing-consumer"}])
+        self.assertNotIn("name", api.writes[-1][2])
+
+    def test_manager_payload_splits_full_chain_and_uses_pkcs8(self):
+        issuer = issue()
+        cert, key = issue(issuer=issuer)
+        material = self.material(cert, key, issuer[0].public_bytes(serialization.Encoding.PEM))
+        api = FakeManagerAPI()
+        sync.reconcile_manager(api, "prod", material)
+        payload = api.writes[0][2]
+        self.assertEqual(len(payload["pem"]["certificates"]), 2)
+        self.assertTrue(payload["pem"]["private_key"].startswith("-----BEGIN PRIVATE KEY-----"))
+        self.assertEqual("".join(payload["pem"]["certificates"]), material[0])
+
+    def test_manager_dry_run_never_writes(self):
+        api = FakeManagerAPI()
+        self.assertEqual(sync.reconcile_manager(api, "prod", self.material(), True), (None, "create"))
+        self.assertEqual(api.writes, [])
+        sync.reconcile_manager(api, "prod", self.material())
+        api.writes.clear()
+        cert, key = issue()
+        self.assertEqual(sync.reconcile_manager(api, "prod", self.material(cert, key), True)[1], "update")
+        self.assertEqual(api.writes, [])
+
+    def test_manager_duplicate_names_fail_before_write(self):
+        api = FakeManagerAPI()
+        api.entries = [{"id": api.cert_id, "name": "cert-sync:prod"}] * 2
+        with self.assertRaisesRegex(sync.SyncError, "Multiple"):
+            sync.reconcile_manager(api, "prod", self.material())
+        self.assertEqual(api.writes, [])
+
+    def test_manager_malformed_public_chain_is_not_overwritten(self):
+        api = FakeManagerAPI()
+        sync.reconcile_manager(api, "prod", self.material())
+        api.writes.clear()
+        api.chain = b"invalid PEM"
+        with self.assertRaisesRegex(sync.SyncError, "public chain"):
+            sync.reconcile_manager(api, "prod", self.material())
+        self.assertEqual(api.writes, [])
+
+    def test_manager_unknown_list_shape_and_invalid_id_are_rejected(self):
+        api = FakeManagerAPI()
+        for entries in [{"items": []}, [{"name": "cert-sync:prod", "id": "invalid/id"}]]:
+            api.entries = entries
+            with self.assertRaises(sync.SyncError):
+                sync.reconcile_manager(api, "prod", self.material())
+        self.assertEqual(api.writes, [])
+
+    def test_manager_does_not_adopt_unmanaged_name(self):
+        api = FakeManagerAPI()
+        api.entries = [{"name": "manual-certificate", "id": "00000000-0000-4000-8000-000000000002"}]
+        sync.reconcile_manager(api, "prod", self.material())
+        self.assertEqual(api.writes[0][0:2], ("POST", "/certs"))
+
+    def test_manager_public_chain_is_normalized_before_comparison(self):
+        api = FakeManagerAPI()
+        material = self.material()
+        sync.reconcile_manager(api, "prod", material)
+        api.writes.clear()
+        api.chain = b"\n" + api.chain + b"\n"
+        self.assertEqual(sync.reconcile_manager(api, "prod", material)[1], "unchanged")
+        self.assertEqual(api.writes, [])
+
+    def test_manager_transport_accepts_raw_pem_and_empty_204(self):
+        opener = MagicMock()
+        response = opener.open.return_value.__enter__.return_value
+        response.headers = {}
+        response.read.return_value = b"PUBLIC PEM"
+        with patch("sync.request.build_opener", return_value=opener):
+            self.assertEqual(sync.API.http("GET", sync.MANAGER_URL + "/ca_chain", raw=True)[0], b"PUBLIC PEM")
+            response.read.return_value = b""
+            self.assertEqual(sync.API.http("POST", sync.MANAGER_URL + "/cert/id")[0], {})
+
+    def test_manager_client_uses_separate_url_and_shared_token(self):
+        api = sync.API("token")
+        with patch.object(api, "http", return_value=({}, {})) as http:
+            self.assertEqual(api.manager_call("POST", "/cert/id", {"pem": {}}), {})
+        self.assertEqual(http.call_args.args, ("POST", sync.MANAGER_URL + "/cert/id", {"pem": {}}, "token"))
+
+    def test_stores_validation(self):
+        self.assertEqual(sync.parse_stores("cdn, certificate-manager,cdn"), ("cdn", "certificate-manager"))
+        for raw in ["", "unknown", "cdn,unknown"]:
+            with self.assertRaises(sync.SyncError):
+                sync.parse_stores(raw)
+
+    def test_manager_only_discovery_does_not_call_cdn(self):
+        annotations = {sync.ANNOTATION_PREFIX + "enabled": "true",
+                       sync.ANNOTATION_PREFIX + "stores": "certificate-manager"}
+        kube = Mock()
+        kube.selected_secrets.return_value = [("network", self.secret(annotations=annotations))]
+        api = FakeManagerAPI()
+        with patch.object(sync.API, "authenticate", return_value=api):
+            self.assertEqual(sync.run_discovery(kube, {"CLUSTER_NAME": "example", "SYNC_NAMESPACES": "network"}), 0)
+        self.assertEqual(len(api.writes), 1)
+
+    def test_discovery_defaults_to_certificate_manager(self):
+        annotations = {sync.ANNOTATION_PREFIX + "enabled": "true"}
+        kube = Mock()
+        kube.selected_secrets.return_value = [("network", self.secret(annotations=annotations))]
+        api = FakeManagerAPI()
+        with patch.object(sync.API, "authenticate", return_value=api):
+            self.assertEqual(sync.run_discovery(kube, {"CLUSTER_NAME": "example", "SYNC_NAMESPACES": "network"}), 0)
+        self.assertEqual(len(api.writes), 1)
+
+    def test_mounted_mode_defaults_to_certificate_manager(self):
+        api = FakeManagerAPI()
+        with patch.dict("os.environ", {"SYNC_NAME": "example"}, clear=True):
+            with patch("sys.argv", ["sync.py"]):
+                with patch.object(sync, "load_material", return_value=self.material()):
+                    with patch.object(sync.API, "authenticate", return_value=api):
+                        self.assertEqual(sync.main(), 0)
+        self.assertEqual(len(api.writes), 1)
+
+    def test_manager_only_rejects_cdn_binding_ids_before_auth(self):
+        annotations = {sync.ANNOTATION_PREFIX + "enabled": "true",
+                       sync.ANNOTATION_PREFIX + "stores": "certificate-manager",
+                       sync.ANNOTATION_PREFIX + "resource-ids": "00000000-0000-4000-8000-000000000001"}
+        kube = Mock()
+        kube.selected_secrets.return_value = [("network", self.secret(annotations=annotations))]
+        with patch.object(sync.API, "authenticate") as auth:
+            with self.assertRaisesRegex(sync.SyncError, "require the cdn store"):
+                sync.run_discovery(kube, {"CLUSTER_NAME": "example", "SYNC_NAMESPACES": "network"})
+        auth.assert_not_called()
+
+    def test_failure_of_one_destination_does_not_block_the_other(self):
+        with patch.object(sync, "reconcile_with_retry", side_effect=[sync.SyncError("CDN failed"), None]) as reconcile:
+            with self.assertLogs(sync.LOG, level="ERROR"):
+                self.assertFalse(sync.sync_destinations(Mock(), "prod", self.material(), (), ("cdn", "certificate-manager")))
+        self.assertEqual(reconcile.call_count, 2)
+        self.assertEqual(reconcile.call_args.kwargs["store"], "certificate-manager")
+
+    def test_destination_retries_only_the_failed_store(self):
+        api = Mock()
+        with patch.object(sync, "reconcile_manager", side_effect=[sync.SyncError("temporary failure"), ("id", "update")]) as manager:
+            with patch.object(sync.time, "sleep"):
+                sync.reconcile_with_retry(api, "prod", self.material(), (), store="certificate-manager")
+        self.assertEqual(manager.call_count, 2)
+        api.call.assert_not_called()
 
 
 if __name__ == "__main__":

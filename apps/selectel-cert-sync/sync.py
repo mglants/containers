@@ -1,4 +1,4 @@
-"""Sync mounted or annotation-selected Kubernetes TLS Secrets to Selectel CDN."""
+"""Sync Kubernetes TLS Secrets to Selectel CDN and Certificate Manager."""
 
 import argparse
 import base64
@@ -23,6 +23,7 @@ from cryptography.hazmat.primitives import serialization
 
 LOG = logging.getLogger("selectel-cert-sync")
 CDN_URL = "https://api.selectel.ru/cdn/v3"
+MANAGER_URL = "https://cloud.api.selcloud.ru/certificate-manager/v1"
 AUTH_URL = "https://cloud.api.selcloud.ru/identity/v3/auth/tokens"
 ANNOTATION_PREFIX = "selectel-cert-sync.glants.xyz/"
 
@@ -43,7 +44,7 @@ class API:
         self.base_url = base_url
 
     @staticmethod
-    def http(method, url, payload=None, token=None):
+    def http(method, url, payload=None, token=None, raw=False):
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if token:
             headers["X-Auth-Token"] = token
@@ -52,7 +53,7 @@ class API:
         try:
             with request.build_opener(NoRedirect()).open(req, timeout=30) as response:
                 data = response.read()
-                return (json.loads(data) if data else {}), response.headers
+                return (data if raw else (json.loads(data) if data else {})), response.headers
         except error.HTTPError as exc:
             # Bodies can echo request fields (including private keys).
             raise SyncError(f"Selectel {method} returned HTTP {exc.code}") from None
@@ -112,6 +113,11 @@ class API:
             raise SyncError("Selectel did not accept the CDN resource update")
         return result
 
+    def manager_call(self, method, path, payload=None, raw=False):
+        # Certificate Manager uses HTTP statuses and raw PEM, not CDN envelopes.
+        result, _ = self.http(method, MANAGER_URL + path, payload, self.token, raw=raw)
+        return result
+
 
 def load_material(directory, min_valid_hours=24):
     """Read one Kubernetes projected-volume generation, avoiding mixed keypairs."""
@@ -161,6 +167,13 @@ def parse_resource_ids(raw):
         return tuple(dict.fromkeys(str(UUID(i.strip())) for i in raw.split(",") if i.strip()))
     except ValueError:
         raise SyncError("CDN resource IDs must be comma-separated UUIDs") from None
+
+
+def parse_stores(raw):
+    stores = tuple(dict.fromkeys(s.strip() for s in raw.split(",") if s.strip()))
+    if not stores or any(s not in ("cdn", "certificate-manager") for s in stores):
+        raise SyncError("Sync stores must be cdn, certificate-manager, or both")
+    return stores
 
 
 def validate_name(name):
@@ -265,12 +278,15 @@ def discovered_jobs(kube, namespaces, cluster_name):
         if name in seen_names:
             raise SyncError("Multiple selected Secrets have the same sync name")
         seen_names.add(name)
+        stores = parse_stores(annotations.get(ANNOTATION_PREFIX + "stores", "certificate-manager"))
         ids = parse_resource_ids(annotations.get(ANNOTATION_PREFIX + "resource-ids", ""))
+        if ids and "cdn" not in stores:
+            raise SyncError("CDN resource IDs require the cdn store")
         for resource_id in ids:
             if resource_id in owners:
                 raise SyncError("Multiple selected Secrets target the same CDN resource")
             owners[resource_id] = source
-        jobs.append((source, secret, name, ids))
+        jobs.append((source, secret, name, ids, stores))
     return jobs
 
 
@@ -287,7 +303,7 @@ def run_discovery(kube, env, dry_run=False):
         return 0
     api = API.authenticate(env)
     failed = False
-    for source, secret, name, ids in jobs:
+    for source, secret, name, ids, stores in jobs:
         try:
             try:
                 data = secret["data"]
@@ -296,7 +312,8 @@ def run_discovery(kube, env, dry_run=False):
             except (KeyError, ValueError, TypeError):
                 raise SyncError("Selected TLS Secret has missing or invalid data") from None
             LOG.info("source=%s sync_name=%s", source, name)
-            reconcile_with_retry(api, name, material, ids, dry_run)
+            if not sync_destinations(api, name, material, ids, stores, dry_run):
+                failed = True
         except SyncError as exc:
             LOG.error("source=%s error=%s", source, exc)
             failed = True
@@ -358,16 +375,83 @@ def reconcile(api, name, material, resource_ids=(), dry_run=False):
     return seq, action
 
 
-def reconcile_with_retry(api, name, material, ids, dry_run=False):
+def manager_id(value):
+    try:
+        if not isinstance(value, str):
+            raise ValueError
+        return str(UUID(value))
+    except ValueError:
+        raise SyncError("Certificate Manager returned an invalid certificate UUID") from None
+
+
+def reconcile_manager(api, name, material, dry_run=False):
+    certificate, private_key, digest, expires = material
+    remote_name = "cert-sync:" + name
+    entries = api.manager_call("GET", "/certs")
+    if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+        raise SyncError("Certificate Manager returned an invalid certificate list")
+    matches = [e for e in entries if e.get("name") == remote_name]
+    if len(matches) > 1:
+        raise SyncError("Multiple Certificate Manager certificates have this sync name")
+    cert_id = manager_id(matches[0].get("id")) if matches else None
+    action = "create"
+    if cert_id:
+        chain = api.manager_call("GET", f"/cert/{cert_id}/ca_chain", raw=True)
+        try:
+            remote_chain = x509.load_pem_x509_certificates(chain)
+            normalized = b"".join(c.public_bytes(serialization.Encoding.PEM) for c in remote_chain)
+        except Exception:
+            raise SyncError("Cannot validate Certificate Manager public chain") from None
+        action = "unchanged" if hashlib.sha256(normalized).hexdigest() == digest else "update"
+    if action != "unchanged" and not dry_run:
+        chain = x509.load_pem_x509_certificates(certificate.encode())
+        payload = {"pem": {
+            "certificates": [c.public_bytes(serialization.Encoding.PEM).decode() for c in chain],
+            "private_key": private_key,
+        }}
+        if cert_id:
+            # Version updates retain the UUID and existing consumer associations.
+            api.manager_call("POST", f"/cert/{cert_id}", payload)
+        else:
+            result = api.manager_call("POST", "/certs", {"name": remote_name, **payload})
+            if not isinstance(result, dict):
+                raise SyncError("Certificate Manager returned an invalid upload response")
+            cert_id = manager_id(result.get("id"))
+    LOG.info("store=certificate-manager action=%s dry_run=%s certificate_id=%s sha256=%s expires=%s",
+             action, dry_run, cert_id, digest, expires.isoformat())
+    if expires < datetime.now(timezone.utc) + timedelta(days=14):
+        LOG.warning("Source certificate expires in less than 14 days; check cert-manager renewal")
+    return cert_id, action
+
+
+def reconcile_with_retry(api, name, material, ids, dry_run=False, store="cdn"):
     # Read remote state on each retry to recover partial success.
     for attempt in range(3):
         try:
+            if store == "certificate-manager":
+                return reconcile_manager(api, name, material, dry_run)
+            if store != "cdn":
+                raise SyncError("Unknown sync store")
             return reconcile(api, name, material, ids, dry_run)
         except SyncError:
             if attempt == 2:
                 raise
             LOG.warning("Reconciliation failed; rereading remote state before retry")
             time.sleep(5 * (attempt + 1))
+
+
+def sync_destinations(api, name, material, ids, stores, dry_run=False):
+    success = True
+    for store in stores:
+        try:
+            if store == "cdn":
+                reconcile_with_retry(api, name, material, ids, dry_run)
+            else:
+                reconcile_with_retry(api, name, material, (), dry_run, store=store)
+        except SyncError as exc:
+            LOG.error("sync_name=%s store=%s error=%s", name, store, exc)
+            success = False
+    return success
 
 
 def main():
@@ -381,10 +465,12 @@ def main():
             return run_discovery(Kubernetes(), os.environ, args.dry_run)
         name = validate_name(os.environ.get("SYNC_NAME", ""))
         ids = parse_resource_ids(os.environ.get("CDN_RESOURCE_IDS", ""))
+        stores = parse_stores(os.environ.get("SYNC_STORES", "certificate-manager"))
+        if ids and "cdn" not in stores:
+            raise SyncError("CDN resource IDs require the cdn store")
         material = load_material(os.environ.get("TLS_DIRECTORY", "/tls"))
         api = API.authenticate(os.environ)
-        reconcile_with_retry(api, name, material, ids, args.dry_run)
-        return 0
+        return 0 if sync_destinations(api, name, material, ids, stores, args.dry_run) else 1
     except SyncError as exc:
         LOG.error("%s", exc)
         return 1

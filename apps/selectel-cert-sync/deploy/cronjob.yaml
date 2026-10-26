@@ -26,7 +26,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: sync
-              image: ghcr.io/mglants/selectel-cert-sync:0.1.0
+              image: ghcr.io/mglants/selectel-cert-sync:0.2.0
               imagePullPolicy: IfNotPresent
               securityContext:
                 allowPrivilegeEscalation: false
@@ -41,6 +41,9 @@ spec:
                   cpu: 200m
                   memory: 128Mi
               env:
+                # Certificate Manager is the default; select cdn explicitly when needed.
+                - name: SYNC_STORES
+                  value: certificate-manager
                 # Stable and unique per source/target project. Do not rename after upload.
                 - name: SYNC_NAME
                   value: production-cdn-example-com
