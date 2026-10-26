@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: selectel-cert-sync
+  namespace: kube-system
+---
+# Repeat Role + RoleBinding for each namespace in SYNC_NAMESPACES.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: selectel-cert-sync
+  namespace: network
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: selectel-cert-sync
+  namespace: network
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: selectel-cert-sync
+subjects:
+  - kind: ServiceAccount
+    name: selectel-cert-sync
+    namespace: kube-system

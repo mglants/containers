@@ -1,0 +1,79 @@
+# Apply in the SAME namespace as the cert-manager TLS Secret.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: selectel-cert-sync
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 240
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 240
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: sync
+              image: ghcr.io/mglants/selectel-cert-sync:0.1.0
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+              env:
+                # Stable and unique per source/target project. Do not rename after upload.
+                - name: SYNC_NAME
+                  value: production-cdn-example-com
+                # Optional existing CDN resource UUIDs, comma-separated.
+                # Empty = upload/update certificate only; bind it manually once.
+                - name: CDN_RESOURCE_IDS
+                  value: ""
+                - name: SELECTEL_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: selectel-cert-sync-credentials
+                      key: username
+                - name: SELECTEL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: selectel-cert-sync-credentials
+                      key: password
+                - name: SELECTEL_ACCOUNT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: selectel-cert-sync-credentials
+                      key: account-id
+                - name: SELECTEL_PROJECT_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: selectel-cert-sync-credentials
+                      key: project-name
+              volumeMounts:
+                - name: tls
+                  mountPath: /tls
+                  readOnly: true
+          volumes:
+            - name: tls
+              secret:
+                secretName: cdn-example-com-tls
+                defaultMode: 0440

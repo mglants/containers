@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: selectel-cert-sync
+  namespace: kube-system
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 240
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 240
+      template:
+        spec:
+          serviceAccountName: selectel-cert-sync
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: sync
+              image: ghcr.io/mglants/selectel-cert-sync:0.1.0
+              args: ["--discover", "--dry-run"] # Remove --dry-run after reviewing the plan.
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+              env:
+                - name: CLUSTER_NAME
+                  value: example-cluster
+                - name: SYNC_NAMESPACES
+                  value: network
+                - name: SELECTEL_CLOUD_CONFIG_FILE
+                  value: /selectel/cloud.conf
+              volumeMounts:
+                - name: selectel-account
+                  mountPath: /selectel
+                  readOnly: true
+          volumes:
+            - name: selectel-account
+              secret:
+                secretName: cloud-config
+                defaultMode: 0440
+                items:
+                  - key: cloud.conf
+                    path: cloud.conf
