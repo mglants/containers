@@ -10,7 +10,7 @@ ARG RECORDER_VERSION
 ADD https://codeload.github.com/bigbluebutton/bbb-webrtc-recorder/tar.gz/refs/tags/${RECORDER_VERSION} /tmp/recorder.tar
 RUN mkdir -p /sources/recorder && tar --no-same-owner -xf /tmp/recorder.tar --strip-components=1 -C /sources/recorder && rm /tmp/recorder.tar
 
-FROM golang:1.27-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS build-runtime
+FROM golang:1.27-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS build-runtime
 ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
 WORKDIR /source
 COPY runtime/config/ ./
@@ -40,7 +40,7 @@ ENV HOME=/tmp LANG=C.UTF-8
 USER 10001:10001
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-FROM golang:1.27-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS build-recorder
+FROM golang:1.27-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS build-recorder
 ARG RECORDER_VERSION
 ENV GOTOOLCHAIN=local
 WORKDIR /source
