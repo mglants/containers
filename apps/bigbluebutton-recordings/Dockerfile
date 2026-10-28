@@ -27,7 +27,7 @@ RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
     go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
 
 # BBB 4.0's Gemfile.lock contains gems that require Ruby < 4.0.
-FROM ruby:3.4-slim-bookworm@sha256:549e18ddab0acedc09a63be26cc3bdb6c05988bf3ebccfd34fbc90869395097c AS build-recordings
+FROM ruby:3.4-slim-bookworm@sha256:a0636a941ef86063f17b343f6c96f271f8eeedd76febf035bb6d57bc5024682b AS build-recordings
 ARG VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake libsystemd-dev libffi-dev libxml2-dev libxslt1-dev zlib1g-dev python3 \
@@ -47,7 +47,7 @@ RUN gem install bundler -v 2.4.20 --no-document \
     && bundle install && bundle clean \
     && rm -rf vendor/bundle/ruby/*/cache && find vendor/bundle -name '*.o' -delete
 
-FROM ruby:3.4-slim-bookworm@sha256:549e18ddab0acedc09a63be26cc3bdb6c05988bf3ebccfd34fbc90869395097c AS recordings-base
+FROM ruby:3.4-slim-bookworm@sha256:a0636a941ef86063f17b343f6c96f271f8eeedd76febf035bb6d57bc5024682b AS recordings-base
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates tini libsystemd0 libffi8 ffmpeg imagemagick poppler-utils rsync \
     python3 python3-attr python3-cairo python3-gi python3-gi-cairo python3-icu python3-lxml \
