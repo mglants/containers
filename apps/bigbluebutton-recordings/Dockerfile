@@ -19,7 +19,7 @@ ARG MKCLEAN_VERSION
 ADD https://codeload.github.com/Matroska-Org/foundation-source/tar.gz/refs/tags/${MKCLEAN_VERSION} /tmp/mkclean.tar
 RUN mkdir -p /sources/mkclean && tar --no-same-owner -xf /tmp/mkclean.tar --strip-components=1 -C /sources/mkclean && rm /tmp/mkclean.tar
 
-FROM golang:1.27-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS build-runtime
+FROM golang:1.27-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS build-runtime
 ENV GOTOOLCHAIN=local GO111MODULE=off CGO_ENABLED=0
 WORKDIR /source
 COPY runtime/config/ ./
