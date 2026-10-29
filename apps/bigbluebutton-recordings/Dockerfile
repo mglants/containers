@@ -8,7 +8,7 @@ ARG PERFECT_FREEHAND_VERSION=1.2.0
 # renovate: datasource=github-tags depName=Matroska-Org/foundation-source versioning=regex:^mkclean-(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$
 ARG MKCLEAN_VERSION=mkclean-0.9.0
 
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS bbb-source
+FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c AS bbb-source
 ARG VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 bzip2 && rm -rf /var/lib/apt/lists/*
 ADD https://codeload.github.com/bigbluebutton/bigbluebutton/tar.gz/refs/tags/v${VERSION} /tmp/bbb.tar
