@@ -22,7 +22,7 @@ WORKDIR /app
 COPY --from=addon-sources /sources/transcription-plugin/ ./
 RUN --mount=type=cache,id=bbb-npm-addons,target=/root/.npm npm ci --no-audit --no-fund && npm run build-bundle
 
-FROM nginx:1.31-alpine@sha256:a3554c0d0b48177b1413c26e01f695334428020d9df01243fbae3e11cfd17417 AS plugins
+FROM nginx:1.31-alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606 AS plugins
 COPY --from=build-plugins /app/dist/ /usr/share/nginx/html/live-transcription/
 COPY build/plugins.conf /etc/nginx/nginx.conf
 USER root
