@@ -25,7 +25,7 @@ out=Path('/runtime-defaults');out.mkdir()
 PYCODE
 RUN python3 /tmp/bbb-build-2.py && rm /tmp/bbb-build-2.py
 
-FROM node:24-bookworm-slim@sha256:91acba91b842bec0bf7ea6f5e09c644c7ccad72c4996ed9616d861d1c7cd60d4 AS node-builder
+FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS node-builder
 ARG VERSION
 ENV NODE_OPTIONS=--max-old-space-size=6144
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git python3 make g++ pkg-config && rm -rf /var/lib/apt/lists/*
@@ -36,7 +36,7 @@ FROM node-builder AS build-annotations
 RUN --mount=type=cache,id=bbb-npm,target=/root/.npm,sharing=locked bash /build/build-node.sh annotations
 
 # Runtime needs Node itself; npm, Yarn and development headers stay in builders.
-FROM node:24-bookworm-slim@sha256:91acba91b842bec0bf7ea6f5e09c644c7ccad72c4996ed9616d861d1c7cd60d4 AS node-binary
+FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS node-binary
 
 FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8 AS node-runtime
 COPY --from=node-binary /usr/local/bin/node /usr/local/bin/node
