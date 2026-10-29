@@ -2,7 +2,7 @@
 # Source-built BigBlueButton graphql-middleware; version and target are selected by Bake.
 ARG VERSION
 
-FROM ubuntu:24.04@sha256:24737cef17f4e22b1977df7d9a05e77c4e28b7da5b8911f8d8ccda136bf3573c AS sources
+FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c AS sources
 ARG VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 bzip2 && rm -rf /var/lib/apt/lists/*
 ADD https://codeload.github.com/bigbluebutton/bigbluebutton/tar.gz/refs/tags/v${VERSION} /tmp/bbb.tar
@@ -22,7 +22,7 @@ COPY --from=sources /sources/bbb/bbb-graphql-middleware/ ./
 RUN --mount=type=cache,id=bbb-go-mod,target=/go/pkg/mod --mount=type=cache,id=bbb-go-build,target=/root/.cache/go-build \
     go mod download && CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflags="-s -w" -o /out/bbb-graphql-middleware ./cmd/bbb-graphql-middleware/main.go
 
-FROM ubuntu:24.04@sha256:24737cef17f4e22b1977df7d9a05e77c4e28b7da5b8911f8d8ccda136bf3573c AS minimal-runtime
+FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c AS minimal-runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini \
     && rm -rf /var/lib/apt/lists/* && groupadd -g 10001 bbb && useradd -u 10001 -g bbb -M -d /tmp bbb
 ENV HOME=/tmp LANG=C.UTF-8
