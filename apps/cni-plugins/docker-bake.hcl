@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=containernetworking/plugins versioning=semver
-  default = "v1.5.1"
+  default = "v1.9.1"
 }
 
 variable "SOURCE" {
