@@ -26,7 +26,7 @@ RUN --mount=type=cache,id=bbb-npm-addons,target=/root/.npm npm ci --omit=dev --n
 # Runtime needs Node itself; npm, Yarn and development headers stay in builders.
 FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS node-binary
 
-FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587 AS webhooks
+FROM debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS webhooks
 COPY --from=node-binary /usr/local/bin/node /usr/local/bin/node
 RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates libstdc++6 libatomic1 && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 1000 node && useradd -u 1000 -g node -m -d /home/node node
