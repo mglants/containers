@@ -30,7 +30,7 @@ RUN git apply /build/no-pin-sub_sip.patch
 RUN --mount=type=cache,id=bbb-go-mod,target=/go/pkg/mod --mount=type=cache,id=bbb-go-build,target=/root/.cache/go-build \
     CGO_ENABLED=1 go build -mod=readonly -trimpath -ldflags="-s -w -X github.com/livekit/sip/version.Version=${SIP_VERSION}" -o /out/livekit-sip ./cmd/livekit-sip
 
-FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587 AS sip
+FROM debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3 AS sip
 RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates libopus0 libopusfile0 libsoxr0 && rm -rf /var/lib/apt/lists/*
 COPY --from=build-sip /out/livekit-sip /usr/local/bin/livekit-sip
 USER root
