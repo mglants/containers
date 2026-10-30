@@ -20,7 +20,7 @@ ADD https://codeload.github.com/bigbluebutton/bbb-livekit-stt/tar.gz/refs/tags/$
 RUN mkdir -p /sources/stt && tar --no-same-owner -xf /tmp/stt.tar --strip-components=1 -C /sources/stt && rm /tmp/stt.tar
 
 # Keep the interpreter compatible with the native wheels in upstream uv.lock.
-FROM python:3.13-slim-bookworm@sha256:a1165e272e578941b84abc79e4ab38a0305cd12803a5c4247979ac7655f4d641 AS stt
+FROM python:3.14-slim-bookworm@sha256:516b51cb9db2ef061e465c803e50f64361b82cefd91e525b889b967b83e83527 AS stt
 ARG UV_VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates libglib2.0-0 libgomp1 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
