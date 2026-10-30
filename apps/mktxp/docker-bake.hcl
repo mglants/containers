@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=akpw/mktxp versioning=semver
-  default = "v1.2.19"
+  default = "v1.2.20"
 }
 
 variable "SOURCE" {
