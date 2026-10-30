@@ -43,7 +43,7 @@ RUN bash /build/build-jvm.sh common
 FROM jvm-common AS build-web
 RUN bash /build/build-jvm.sh web
 
-FROM eclipse-temurin:21-jre-noble@sha256:35501d3f93173b420ac9001658eb68157e813316b865087e345c187fca422c4c AS java-runtime
+FROM eclipse-temurin:21-jre-noble@sha256:161310cd5bd41fd549d19cf9f90b614897cb4a1532555c613b43b7e0628fe5d6 AS java-runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini \
     && rm -rf /var/lib/apt/lists/* && groupadd -g 10001 bbb && useradd -u 10001 -g bbb -M -d /tmp bbb \
     && mkdir -p /etc/bigbluebutton /var/bigbluebutton /var/log/bigbluebutton \
