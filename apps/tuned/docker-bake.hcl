@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-tags depName=redhat-performance/tuned versioning=semver
-  default = "v2.26.0"
+  default = "v2.28.0"
 }
 
 variable "SOURCE" {
