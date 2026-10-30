@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.28
 # Source-built BigBlueButton bootstrap; version and target are selected by Bake.
 ARG VERSION
 # renovate: datasource=github-releases depName=hasura/graphql-engine
