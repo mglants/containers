@@ -2,7 +2,7 @@
 # Source-built BigBlueButton bootstrap; version and target are selected by Bake.
 ARG VERSION
 # renovate: datasource=github-releases depName=hasura/graphql-engine
-ARG HASURA_VERSION=v2.50.3
+ARG HASURA_VERSION=v2.51.3
 
 FROM ubuntu:24.04@sha256:24737cef17f4e22b1977df7d9a05e77c4e28b7da5b8911f8d8ccda136bf3573c AS bbb-source
 ARG VERSION
