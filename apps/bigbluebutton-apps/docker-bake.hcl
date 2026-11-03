@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=bigbluebutton/bigbluebutton versioning=semver
-  default = "v4.0.0"
+  default = "v4.0.1"
 }
 
 variable "SOURCE" {
