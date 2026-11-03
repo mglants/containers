@@ -59,7 +59,7 @@ With Remnawave's HWID limit on, a request without `x-hwid` gets no subscription,
 
 Check the exact fields against your panel's version. Anyone holding that value can skip the limit for a link they already have, so keep it secret, and don't send it through anything that logs headers.
 
-Point `RW_API_URL` at the panel's internal address where you can, so that the token doesn't cross the public internet.
+Point `RW_API_URL` at the panel's internal address where you can, so that the token doesn't cross the public internet. The panel closes connections without `X-Forwarded-For` and `X-Forwarded-Proto: https`, so the job sends both on its requests.
 
 ## Safety
 
@@ -73,13 +73,13 @@ The storage bucket must allow public reads of files and must not allow public li
 
 ## Build and tests
 
-The repository workflows discover `docker-bake.hcl`, declaring version `0.1.0` and amd64/arm64 builds. The image runs as UID/GID 65532.
+The repository workflows discover `docker-bake.hcl`, declaring version `0.1.1` and amd64/arm64 builds. The image runs as UID/GID 65532.
 
 From the repository root: `mise run local-build remnawave-s3-sync`. Alternatively, from this app directory:
 
 ```sh
 docker buildx bake --load
-TEST_IMAGE=remnawave-s3-sync:0.1.0 go test -count=1 -v ./...
+TEST_IMAGE=remnawave-s3-sync:0.1.1 go test -count=1 -v ./...
 ```
 
 Builds run the Go tests in `runtime/sync`; the container test checks the binary in the finished image.

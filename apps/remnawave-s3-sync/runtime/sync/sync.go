@@ -89,6 +89,13 @@ type panelUser struct {
 	Status    string `json:"status"`
 }
 
+// setForwarded lets requests reach the panel without its reverse proxy: it closes
+// connections that don't carry these headers. A proxy in between replaces them.
+func setForwarded(request *http.Request) {
+	request.Header.Set("X-Forwarded-For", "127.0.0.1")
+	request.Header.Set("X-Forwarded-Proto", "https")
+}
+
 func (s *syncer) activeTokens(ctx context.Context) ([]string, error) {
 	var tokens []string
 	for start := 0; ; start += usersPageSize {
@@ -98,6 +105,7 @@ func (s *syncer) activeTokens(ctx context.Context) ([]string, error) {
 			return nil, errors.New("panel API address is invalid")
 		}
 		request.Header.Set("Authorization", "Bearer "+s.cfg.APIToken)
+		setForwarded(request)
 		response, err := s.client.Do(request)
 		if err != nil {
 			return nil, errors.New("panel API request failed")
@@ -161,6 +169,7 @@ func (s *syncer) fetchSubscription(ctx context.Context, token string) (backupCon
 	}
 	request.Header.Set("User-Agent", s.cfg.UserAgent)
 	request.Header.Set("Accept", accept)
+	setForwarded(request)
 	if s.cfg.SyncToken != "" {
 		request.Header.Set(syncHeader, s.cfg.SyncToken)
 	}

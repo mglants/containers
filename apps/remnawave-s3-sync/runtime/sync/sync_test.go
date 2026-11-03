@@ -72,6 +72,10 @@ type panel struct {
 }
 
 func (p *panel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Like the real panel, which closes the connection without answering.
+	if r.Header.Get("X-Forwarded-For") == "" || r.Header.Get("X-Forwarded-Proto") != "https" {
+		panic(http.ErrAbortHandler)
+	}
 	if strings.HasPrefix(r.URL.Path, "/api/users") {
 		if r.Header.Get("Authorization") != "Bearer fixture-api-token" {
 			w.WriteHeader(http.StatusUnauthorized)
