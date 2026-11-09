@@ -35,6 +35,22 @@ The client must use the same `FORMAT_*` values, or it won't find or open the fil
 | `MAX_DELETE_PERCENT`                    | no        | Default 50. Refuses to delete more than this share of files.                                              |
 | `CONCURRENCY`                           | no        | Default 4                                                                                                 |
 
+## Enrolment upload policies (optional, off by default)
+
+With `ENROL_BUCKET` set, each user's file also holds one signed upload policy for each device the panel lists. A policy holds no storage key: it permits one exact object, up to a size limit, until it expires, and signing is local. The file names objects, not HWIDs. If the panel's device list can't be read, backups still go out, without policies for that run. With `ENROL_BUCKET` unset, behaviour and the file format are unchanged.
+
+| Variable                                  | Required      | Meaning                                                                        |
+| ----------------------------------------- | ------------- | ------------------------------------------------------------------------------ |
+| `ENROL_BUCKET`                            | turns this on | A separate bucket from the backups                                             |
+| `ENROL_ACCESS_KEY`, `ENROL_SECRET_KEY`    | with bucket   | Used only to sign; give this account no more than uploads under `ENROL_PREFIX` |
+| `ENROL_PREFIX`                            | with bucket   | Folder for uploaded objects, ending in `/`                                     |
+| `ENROL_USER_LABEL`, `ENROL_REQUEST_LABEL` | with bucket   | HKDF info values for the object name                                           |
+| `ENROL_REGION`                            | see meaning   | Defaults to `S3_REGION`; one of them is needed                                 |
+| `ENROL_ENDPOINT`                          | no            | Defaults to `S3_ENDPOINT`                                                      |
+| `ENROL_POLICY_HOURS`                      | no            | Default 48, from 1 to 720                                                      |
+
+The client must use the same prefix and labels, or its requests won't match any policy.
+
 ## Device limits
 
 With Remnawave's HWID limit on, a request without `x-hwid` gets no subscription, and sending one would use a device slot for every user. Add a response rule that matches this job's secret header and turns the check off for it, so no slots are used. The job treats a device-limit answer as a failure and stores nothing.

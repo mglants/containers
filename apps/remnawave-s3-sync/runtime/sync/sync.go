@@ -59,6 +59,7 @@ type config struct {
 	MaxFailedPercent int
 	MaxDeletePercent int
 	Concurrency      int
+	Enrol            *enrolConfig // nil leaves enrolment off
 }
 
 type report struct {
@@ -73,6 +74,9 @@ type syncer struct {
 	store  store
 	now    func() time.Time
 	logf   func(string, ...any)
+
+	uuids   map[string]string   // token -> device key, only when enrolment is on
+	devices map[string][]string // device key -> HWIDs
 }
 
 func newHTTPClient() *http.Client {
@@ -85,6 +89,8 @@ func newHTTPClient() *http.Client {
 }
 
 type panelUser struct {
+	ID        int64  `json:"id"`
+	UUID      string `json:"uuid"`
 	ShortUUID string `json:"shortUuid"`
 	Status    string `json:"status"`
 }
@@ -128,6 +134,9 @@ func (s *syncer) activeTokens(ctx context.Context) ([]string, error) {
 		for _, user := range page.Response.Users {
 			if user.Status == "ACTIVE" {
 				tokens = append(tokens, user.ShortUUID)
+				if s.uuids != nil {
+					s.uuids[user.ShortUUID] = deviceKey(user.ID, user.UUID)
+				}
 			}
 		}
 		if len(page.Response.Users) == 0 || start+len(page.Response.Users) >= page.Response.Total {
@@ -224,6 +233,11 @@ func (s *syncer) syncOne(ctx context.Context, token string) error {
 	if err != nil {
 		return err
 	}
+	if s.cfg.Enrol != nil && s.devices != nil {
+		if content.UploadPolicies, err = s.cfg.Enrol.policiesFor(token, s.devices[s.uuids[token]], s.now()); err != nil {
+			return errors.New("policy failed")
+		}
+	}
 	data, err := s.cfg.Format.seal(token, content)
 	if err != nil {
 		return errors.New("encryption failed")
@@ -242,9 +256,20 @@ func (s *syncer) syncOne(ctx context.Context, token string) error {
 // whose fetch fails keeps their previous file, which may still work.
 func (s *syncer) run(ctx context.Context) (report, error) {
 	var result report
+	if s.cfg.Enrol != nil {
+		s.uuids = map[string]string{}
+	}
 	tokens, err := s.activeTokens(ctx)
 	if err != nil {
 		return result, err
+	}
+	if s.cfg.Enrol != nil {
+		// Backups matter more: without the device list they still go out, with no
+		// policies this run, and the policies in older files simply expire.
+		if s.devices, err = s.devicesByUser(ctx); err != nil {
+			s.devices = nil
+			s.logf("no upload policies this run: %v", err)
+		}
 	}
 	result.Users = len(tokens)
 	// A panel returning nothing must not look like every user being removed.

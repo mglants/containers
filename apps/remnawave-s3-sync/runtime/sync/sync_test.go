@@ -63,8 +63,16 @@ func (m *memoryStore) Delete(_ context.Context, name string) error {
 	return nil
 }
 
+type panelDevice struct {
+	HWID string `json:"hwid"`
+	User string `json:"userUuid,omitempty"`
+	ID   int64  `json:"userId,omitempty"`
+}
+
 type panel struct {
 	users   []panelUser
+	devices []panelDevice
+	devErr  int
 	answer  func(w http.ResponseWriter, r *http.Request, token string)
 	listErr int
 	seen    []http.Header
@@ -75,6 +83,14 @@ func (p *panel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Like the real panel, which closes the connection without answering.
 	if r.Header.Get("X-Forwarded-For") == "" || r.Header.Get("X-Forwarded-Proto") != "https" {
 		panic(http.ErrAbortHandler)
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/hwid/devices") {
+		if p.devErr != 0 {
+			w.WriteHeader(p.devErr)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{"devices": p.devices, "total": len(p.devices)}})
+		return
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/users") {
 		if r.Header.Get("Authorization") != "Bearer fixture-api-token" {

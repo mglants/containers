@@ -26,6 +26,8 @@ type backupContent struct {
 	CreatedAt int64             `json:"created-at"`
 	Headers   map[string]string `json:"headers"`
 	Config    string            `json:"config"`
+	// UploadPolicies is set only when enrolment is configured; older apps ignore it.
+	UploadPolicies map[string]uploadPolicy `json:"upload-policies,omitempty"`
 }
 
 func (f fileFormat) fileName(token string) (string, error) {

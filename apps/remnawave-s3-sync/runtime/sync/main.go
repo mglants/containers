@@ -114,6 +114,9 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return errors.New("storage settings are invalid")
 	}
+	if cfg.Enrol, err = enrolSettings(endpoint); err != nil {
+		return err
+	}
 	s := &syncer{
 		cfg:    cfg,
 		client: newHTTPClient(),
@@ -124,6 +127,43 @@ func run(ctx context.Context) error {
 	result, err := s.run(ctx)
 	log.Printf("users=%d uploaded=%d failed=%d deleted=%d", result.Users, result.Uploaded, result.Failed, result.Deleted)
 	return err
+}
+
+// enrolSettings reads the optional enrolment settings; no ENROL_BUCKET means off.
+func enrolSettings(defaultEndpoint string) (*enrolConfig, error) {
+	bucket := strings.TrimSpace(os.Getenv("ENROL_BUCKET"))
+	if bucket == "" {
+		return nil, nil
+	}
+	e := &enrolConfig{
+		Bucket: bucket, Endpoint: strings.TrimSpace(os.Getenv("ENROL_ENDPOINT")), Region: strings.TrimSpace(os.Getenv("ENROL_REGION")),
+		AccessKey: strings.TrimSpace(os.Getenv("ENROL_ACCESS_KEY")), SecretKey: strings.TrimSpace(os.Getenv("ENROL_SECRET_KEY")),
+		Prefix:    strings.TrimSpace(os.Getenv("ENROL_PREFIX")),
+		UserLabel: strings.TrimSpace(os.Getenv("ENROL_USER_LABEL")), RequestLabel: strings.TrimSpace(os.Getenv("ENROL_REQUEST_LABEL")),
+		Lifetime: 48 * time.Hour,
+	}
+	if e.Endpoint == "" {
+		e.Endpoint = defaultEndpoint
+	}
+	if e.Region == "" {
+		e.Region = strings.TrimSpace(os.Getenv("S3_REGION"))
+	}
+	for name, value := range map[string]string{
+		"ENROL_ACCESS_KEY": e.AccessKey, "ENROL_SECRET_KEY": e.SecretKey, "ENROL_REGION or S3_REGION": e.Region,
+		"ENROL_PREFIX": e.Prefix, "ENROL_USER_LABEL": e.UserLabel, "ENROL_REQUEST_LABEL": e.RequestLabel,
+	} {
+		if value == "" {
+			return nil, errors.New("ENROL_BUCKET needs " + name)
+		}
+	}
+	if value := strings.TrimSpace(os.Getenv("ENROL_POLICY_HOURS")); value != "" {
+		hours, err := strconv.Atoi(value)
+		if err != nil || hours < 1 || hours > 720 {
+			return nil, errors.New("ENROL_POLICY_HOURS must be from 1 to 720")
+		}
+		e.Lifetime = time.Duration(hours) * time.Hour
+	}
+	return e, nil
 }
 
 func main() {
