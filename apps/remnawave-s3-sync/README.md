@@ -89,13 +89,13 @@ The storage bucket must allow public reads of files and must not allow public li
 
 ## Build and tests
 
-The repository workflows discover `docker-bake.hcl`, declaring version `0.1.1` and amd64/arm64 builds. The image runs as UID/GID 65532.
+The repository workflows discover `docker-bake.hcl`, declaring version `0.2.0` and amd64/arm64 builds. The image runs as UID/GID 65532.
 
 From the repository root: `mise run local-build remnawave-s3-sync`. Alternatively, from this app directory:
 
 ```sh
 docker buildx bake --load
-TEST_IMAGE=remnawave-s3-sync:0.1.1 go test -count=1 -v ./...
+TEST_IMAGE=remnawave-s3-sync:0.2.0 go test -count=1 -v ./...
 ```
 
 Builds run the Go tests in `runtime/sync`; the container test checks the binary in the finished image.
