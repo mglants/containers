@@ -4,7 +4,7 @@ ARG VERSION
 # renovate: datasource=github-tags depName=bigbluebutton/bbb-webrtc-recorder
 ARG RECORDER_VERSION=v0.17.0
 
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS sources
+FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852 AS sources
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 bzip2 && rm -rf /var/lib/apt/lists/*
 ARG RECORDER_VERSION
 ADD https://codeload.github.com/bigbluebutton/bbb-webrtc-recorder/tar.gz/refs/tags/${RECORDER_VERSION} /tmp/recorder.tar
@@ -33,7 +33,7 @@ for name in ('dirFileMode','fileMode'):
 PYCODE
 RUN python3 /tmp/bbb-build-2.py && rm /tmp/bbb-build-2.py
 
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS minimal-runtime
+FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852 AS minimal-runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini \
     && rm -rf /var/lib/apt/lists/* && groupadd -g 10001 bbb && useradd -u 10001 -g bbb -M -d /tmp bbb
 ENV HOME=/tmp LANG=C.UTF-8
