@@ -17,14 +17,14 @@ ARG WEBHOOKS_VERSION
 ADD https://codeload.github.com/bigbluebutton/bbb-webhooks/tar.gz/refs/tags/${WEBHOOKS_VERSION} /tmp/webhooks.tar
 RUN mkdir -p /sources/webhooks && tar --no-same-owner -xf /tmp/webhooks.tar --strip-components=1 -C /sources/webhooks && rm /tmp/webhooks.tar
 
-FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS build-webhooks
+FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS build-webhooks
 WORKDIR /app
 COPY --from=addon-sources /sources/webhooks/ ./
 RUN --mount=type=cache,id=bbb-npm-addons,target=/root/.npm npm ci --omit=dev --no-audit --no-fund \
     && cp config/default.example.yml config/default.yml
 
 # Runtime needs Node itself; npm, Yarn and development headers stay in builders.
-FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS node-binary
+FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS node-binary
 
 FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587 AS webhooks
 COPY --from=node-binary /usr/local/bin/node /usr/local/bin/node
