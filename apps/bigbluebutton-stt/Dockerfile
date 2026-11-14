@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.28
 # Source-built BigBlueButton stt; version and target are selected by Bake.
 ARG VERSION
 # renovate: datasource=github-tags depName=bigbluebutton/bbb-livekit-stt
