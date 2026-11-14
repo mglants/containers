@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-tags depName=mdevaev/emonoda versioning=semver
-  default = "v2.1.37"
+  default = "v2.1.40"
 }
 
 variable "SOURCE" {
