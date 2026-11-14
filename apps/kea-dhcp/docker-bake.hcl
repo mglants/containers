@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-tags depName=isc-projects/kea versioning=regex:^(?:Kea-)?(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$
-  default = "2.7.7"
+  default = "Kea-3.3.3"
 }
 
 variable "SOURCE" {
