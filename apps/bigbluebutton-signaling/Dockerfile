@@ -17,7 +17,7 @@ COPY runtime/config/ ./
 RUN --mount=type=cache,id=bbb-runtime-go-build,target=/root/.cache/go-build \
     go test . && go build -trimpath -ldflags="-s -w" -o /out/bbb-runtime .
 
-FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS node-builder
+FROM node:26-bookworm-slim@sha256:bc0a2afd3b74ce12222fc8bab99271e66257f021078f5f4a5d687a77d280c1d9 AS node-builder
 ARG VERSION
 ENV NODE_OPTIONS=--max-old-space-size=6144
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git python3 make g++ pkg-config && rm -rf /var/lib/apt/lists/*
@@ -35,7 +35,7 @@ RUN rm -rf /out/.git /out/node_modules/mediasoup/worker/out/Release/subprojects 
     /out/node_modules/mediasoup/worker/out/Release/deps
 
 # Runtime needs Node itself; npm, Yarn and development headers stay in builders.
-FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS node-binary
+FROM node:26-bookworm-slim@sha256:bc0a2afd3b74ce12222fc8bab99271e66257f021078f5f4a5d687a77d280c1d9 AS node-binary
 
 FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8 AS node-runtime
 COPY --from=node-binary /usr/local/bin/node /usr/local/bin/node
