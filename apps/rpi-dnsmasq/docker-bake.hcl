@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=pftf/RPi4 versioning=semver-coerced
-  default = "v1.52"
+  default = "v1.53"
 }
 
 variable "SOURCE" {
