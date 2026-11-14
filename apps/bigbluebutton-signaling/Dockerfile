@@ -4,7 +4,7 @@ ARG VERSION
 # renovate: datasource=github-tags depName=bigbluebutton/bbb-webrtc-sfu
 ARG SIGNALING_VERSION=v2.25.0-beta.3
 
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS sources
+FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c AS sources
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 bzip2 && rm -rf /var/lib/apt/lists/*
 ARG SIGNALING_VERSION
 ADD https://codeload.github.com/bigbluebutton/bbb-webrtc-sfu/tar.gz/refs/tags/${SIGNALING_VERSION} /tmp/signaling.tar
